@@ -2120,8 +2120,8 @@ class VFApproximator(object):
             # Plot closed-loop trajectories
             if cl_plot_j and divmod(j, cl_plot_freq)[1] == 0 and not suppress_outputs:
                 print "  Plotting a closed-loop trajectory..."
-                x0 = np.array([1., 0., -0.17453, 0.])
-                # x0 = np.ones((self.n,), dtype=float)
+                # x0 = np.array([1., 0., -0.17453, 0.])
+                x0 = np.ones((self.n,), dtype=float)
                 self.s.simulate(x0, self, n_steps=cl_plot_n_steps, iter_no=j, save_plot=True)
                 # Save timing info
                 pd.DataFrame([('LB computation time', self.lb_computation_time)]).to_csv(
