@@ -8,11 +8,6 @@ import pandas as pd
 import itertools
 from matplotlib import pyplot as plt
 from scipy.interpolate import RectBivariateSpline
-# try:
-#     from scipy.interpolate import RegularGridInterpolator
-# except ImportError as e:
-#     print "Couldn't import scipy.interpolate.RegularGridInterpolator!"
-#     print e
 from scipy.io import savemat, loadmat
 from scipy.optimize import nnls, minimize_scalar
 from scipy.stats import laplace, uniform
@@ -21,13 +16,41 @@ import os
 from gddp import QConstraint
 np.seterr(divide='ignore')
 from vfa import VFApproximator
-from mpl_toolkits.mplot3d import Axes3D
 
+default_qf_approx_strategy = {'max_iter': 100,
+                              'n_z_points': 100, 'rand_seed': 1,
+                              'on_policy': True,
+                              'q_function_limit': 10000,
+                              'sol_strategy': 'random', 'conv_tol': 1e-4,
+                              'stop_on_convergence': False,
+                              'remove_redundant': False, 'removal_freq': 10,
+                              'removal_resolution': 100000,
+                              'focus_on_origin': False, 'consolidate_constraints': False,
+                              'consolidation_freq': False,
+                              'value_function_limit': 10000,
+                              'brute_force_grid_res': 100}
+
+default_qf_approx_outputs = {'cl_plot_j': False, 'cl_plot_freq': 20, 'cl_plot_final': False,
+                             'cl_plot_n_steps': 50,
+                             'qfa_plot_j': False, 'qfa_plot_freq': 1, 'qfa_plot_ub': False,
+                             'qfa_plot_final': True,
+                             'policy_plot_j': False, 'policy_plot_freq': 5,
+                             'policy_plot_final': True,
+                             'suppress all': False}
+
+# Plotting ranges for 2D value functions
+default_x1_min, default_x1_max, default_x1_res = -3, 3, 0.1
+default_u1_min, default_u1_max, default_u1_res = -3, 3, 0.1
+default_n1m1_vmin, default_n1m1_vmax = None, None
 
 class QFApproximator(VFApproximator):
 
     def __init__(self, system, solver='gurobi'):
         super(QFApproximator, self).__init__(system, solver)
+
+        self.default_strategy = default_qf_approx_strategy
+        self.default_outputs = default_qf_approx_outputs
+
         self.n_beta = 1
         self.mod_x, self.mod_c, self.mod_c_c, self.mod_alpha_c = None, None, None, None
         self.pmod, self.pmod_x, self.pmod_c = None, None, None  # Placeholder for policy opt. model
@@ -107,7 +130,7 @@ class QFApproximator(VFApproximator):
 
         elif self.solver == 'ecos':
             print "ECOS Q-function approximator model not implemented. Exiting."
-            raise SystemExit
+            raise SystemExit()
         else:
             if self.s.brute_force_solve:
                 initial_lb = QConstraint(self.n, self.m, 0, 0., None, None)
@@ -239,15 +262,28 @@ class QFApproximator(VFApproximator):
                 print "Solver " + self.solver + " not implemented!"
                 raise SystemExit()
 
-    def approximate(self, strategy, audit, outputs):
+    def approximate(self, strategy_in=None, audit_in=None, outputs_in=None):
         """
         Create an iterative approximation of the value function for the system self.s
 
-        :param strategy: Dictionary of parameters describing the solution strategy
-        :param audit: Dict of parameters describing how progress should be tracked during solution
-        :param outputs: Dict of parameters determining outputs produced
+        :param strategy_in: Dictionary of parameters describing the solution strategy
+        :param audit_in: Dict of parameters describing how progress should be tracked during sol'n
+        :param outputs_in: Dict of parameters determining outputs produced
         :return: Convergence data structure
         """
+
+        strategy = self.default_strategy
+        audit = self.default_audit
+        outputs = self.default_outputs
+        if strategy_in is not None and isinstance(strategy_in, dict):
+            for (k, v) in strategy_in.iteritems():
+                strategy[k] = v
+        if audit_in is not None and isinstance(audit_in, dict):
+            for (k, v) in audit_in.iteritems():
+                audit[k] = v
+        if outputs_in is not None and isinstance(outputs_in, dict):
+            for (k, v) in outputs_in.iteritems():
+                outputs[k] = v
 
         j_max, n_z_points = strategy['max_iter'], strategy['n_z_points']
         on_policy = strategy['on_policy']
@@ -1220,16 +1256,15 @@ class QFApproximator(VFApproximator):
         :return: nothing
         """
         # Extract value function lower bounds from model constraints, then plot
-        fig = plt.figure(figsize=(5, 3))
+        plt.figure(figsize=(5, 3))
         if save:
             if not os.path.isdir(output_dir):
                 os.makedirs(output_dir)
         if self.n == 1 and self.m == 1:
-            x_min, x_max = 0., 3.
-            u_min, u_max = -1., 1.
-            res = 0.025
-            x1 = np.arange(x_min, x_max + res, res).tolist()
-            x2 = np.arange(u_min, u_max + res, res).tolist()
+            x_min, x_max, x1_res = default_x1_min, default_x1_max, default_x1_res
+            u_min, u_max, u1_res = default_u1_min, default_u1_max, default_u1_res
+            x1 = np.arange(x_min, x_max + x1_res, x1_res).tolist()
+            x2 = np.arange(u_min, u_max + u1_res, u1_res).tolist()
             mesh = np.zeros((len(x1), len(x2)), dtype=float)
             for ind1, x1_plot in enumerate(x1):
                 for ind2, x2_plot in enumerate(x2):
@@ -1241,45 +1276,23 @@ class QFApproximator(VFApproximator):
             # else:
             #     savemat(output_dir + '/qfa_%d.mat' % iter_no, {'X': X, 'Y': Y, 'mesh': mesh})
 
-            proj, plot_visited, plot_xalgualg = '2D', True, True
+            plot_visited, plot_xalgualg = True, True
 
-            if proj == '3D':
-                ax = fig.add_subplot(111, projection='3d')
-                ax.plot_wireframe(X, Y, mesh.T, zorder=0, linewidths=0.5)
-                ax.set_zlim(0, 17)
-
-            else:
-                ax = plt.subplot()
-                plt.imshow(mesh.T, aspect=0.8, origin='lower', cmap='bone',
-                           extent=[x_min, x_max, u_min, u_max], vmin=0, vmax=12)
+            ax = plt.subplot()
+            plt.imshow(mesh.T, aspect=0.8, origin='lower', cmap='bone',
+                       extent=[x_min, x_max, u_min, u_max],
+                       vmin=default_n1m1_vmin, vmax=default_n1m1_vmax)
             plt.xlim([x_min, x_max])
             plt.ylim([u_min, u_max])
             plt.xlabel('$x_1$')
             plt.ylabel('$u_1$')
             if plot_visited and self.x_visited is not None:
-                if proj == '3D':
-                    scat = ax.scatter3D([x[0] for x in self.x_visited],
-                                        [u[0] for u in self.u_visited],
-                                        [self.eval_qfa(np.array([x[0]]),
-                                                       np.array([self.u_visited[i][0]])) + 0.05
-                                         for i, x in enumerate(self.x_visited)],
-                                        s=15, c='r', linewidths=0, zorder=2)
-                    ax.add_collection3d(scat)
-                else:
-                    ax.scatter([x[0] for x in self.x_visited], [u[0] for u in self.u_visited],
-                               s=30, c='g', marker='x', linewidths=0)
+                ax.scatter([x[0] for x in self.x_visited], [u[0] for u in self.u_visited],
+                           s=30, c='g', marker='x', linewidths=0)
             if plot_xalgualg:
-                if proj == '3D':
-                    scat = ax.scatter3D([x[0] for x in self.xalg_list],
-                                        [self.q_policy(x)[0] for x in self.xalg_list],
-                                        [self.eval_qfa(x, self.q_policy(x)) + 0.05
-                                         for x in self.xalg_list],
-                                        s=15, c='r', linewidths=0, zorder=2)
-                    ax.add_collection3d(scat)
-                else:
-                    ax.scatter([x[0] for x in self.xalg_list],
-                               [self.q_policy(x)[0] for x in self.xalg_list],
-                               s=15, c='w', linewidths=0)
+                ax.scatter([x[0] for x in self.xalg_list],
+                           [self.q_policy(x)[0] for x in self.xalg_list],
+                           s=15, c='w', linewidths=0)
             # on_policy_string = "on-policy" if self.on_policy else "off-policy"
             on_policy_string = "Variant B" if self.on_policy else "Variant A"
             if iter_no is not None:

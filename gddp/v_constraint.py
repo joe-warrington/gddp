@@ -7,7 +7,7 @@ from scipy.optimize import minimize
 import gurobipy as gu
 
 
-class Constraint(object):
+class VConstraint(object):
     """Lower-bounding constraint for value function under-approximation"""
 
     def __init__(self, n, id_in, const_in=None, lin_in=None, hessian_in=None,

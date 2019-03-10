@@ -7,24 +7,58 @@ import scipy.linalg
 import copy
 import pandas as pd
 import itertools
+import matplotlib as mpl
+mpl.rcParams['font.family'] = 'serif'
 from matplotlib import pyplot as plt
 from scipy.interpolate import RectBivariateSpline
-# try:
-#     from scipy.interpolate import RegularGridInterpolator
-# except ImportError as e:
-#     print "Couldn't import scipy.interpolate.RegularGridInterpolator!"
-#     print e
 from scipy.io import savemat, loadmat
 from scipy.optimize import nnls, minimize_scalar
 from scipy.stats import laplace
 from pprint import pprint
 import os
-from gddp import Constraint
+from gddp import VConstraint
 np.seterr(divide='ignore')
+
+# Guroabi solution status codes
+gu_status_codes = {1: "Loaded", 2: "Optimal", 3: "Infeasible", 4: "Infeasible or unbounded",
+                   5: "Unbounded", 6: "Cutoff", 7: "Iteration limit", 8: "Node limit",
+                   9: "Time limit", 10: "Solution limit", 11: "Interrupted", 12: "Numerical issues",
+                   13: "Suboptimal", 14: "In progress", 15: "User objective limit"}
+
+# Default value function approximation parameters
+default_approx_strategy = {'max_iter': 100,
+                           'n_x_points': 100, 'rand_seed': 1,
+                           'sol_strategy': 'random', 'conv_tol': 1e-4,
+                           'stop_on_convergence': False,
+                           'remove_redundant': False, 'removal_freq': 10,
+                           'removal_resolution': 100000,
+                           'focus_on_origin': False, 'consolidate_constraints': False,
+                           'consolidation_freq': False,
+                           'value_function_limit': 10000,
+                           'brute_force_grid_res': 100}
+default_approx_audit = {'eval_ub': False, 'eval_ub_freq': 5, 'eval_ub_final': False,
+                        'eval_bellman': False, 'eval_bellman_freq': 5,
+                        'eval_integral': False, 'eval_integral_freq': 5,
+                        'n_independent_x': 100,
+                        'eval_convergence': False, 'eval_convergence_freq': 5}
+default_approx_outputs = {'cl_plot_j': False, 'cl_plot_freq': 20, 'cl_plot_final': False,
+                          'cl_plot_n_steps': 50,
+                          'vfa_plot_j': False, 'vfa_plot_freq': 1, 'vfa_plot_ub': False,
+                          'vfa_plot_final': True,
+                          'policy_plot_j': False, 'policy_plot_freq': 5,
+                          'policy_plot_final': True,
+                          'suppress all': False}
+
+# Plotting ranges for 2D value functions
+default_x1_min, default_x1_max, default_res1 = -3, 3, 0.1
+default_x2_min, default_x2_max, default_res2 = -3, 3, 0.1
+default_2d_vmin, default_2d_vmax = None, None
+
 
 class VFApproximator(object):
     """VFApproximator generates approximate value functions for continuous state and action
-    problems.
+    problems. Initialised with the system in question, which includes cost function, discount rate
+    etc.
     """
 
     def __init__(self, system, solver='gurobi'):
@@ -60,9 +94,6 @@ class VFApproximator(object):
         self.v_integral_eval_time = None
         self.lb_computation_time = None
 
-        # Upper-bounding object (deprecated)
-        # self.bd = Bounder(self.n)
-
         # Empty list of value function lower-approximation constraints
         self.alpha_c_list = []
         self.alpha_c_in_model = []
@@ -77,6 +108,11 @@ class VFApproximator(object):
         self.v_n_ind_samples = None
         np.random.seed(1000)
         self.v_integral_x_list = None
+
+        # Default approximation parameters
+        self.default_strategy = default_approx_strategy
+        self.default_audit = default_approx_audit
+        self.default_outputs = default_approx_outputs
 
     def create_audit_samples(self, n_s, seed=None):
         """Create set of independent samples on which value function approximation quality will be
@@ -151,7 +187,7 @@ class VFApproximator(object):
                                    self.s.ti[i], name="beta_%d" % (i+1))
 
             # Add initial alpha epigraph constraint
-            initial_lb = Constraint(self.n, 0, 0., None, None)
+            initial_lb = VConstraint(self.n, 0, 0., None, None)
             self.add_alpha_constraint(initial_lb)
 
             # Update model to reflect constraints
@@ -194,12 +230,12 @@ class VFApproximator(object):
 
             # Add initial alpha epigraph constraints
             self.ecos_alpha_constrs = []
-            initial_lb = Constraint(self.n, 0, 0., None, None)
+            initial_lb = VConstraint(self.n, 0, 0., None, None)
             self.add_alpha_constraint(initial_lb)
 
         else:
             if self.s.brute_force_solve:
-                initial_lb = Constraint(self.n, 0, 0., None, None)
+                initial_lb = VConstraint(self.n, 0, 0., None, None)
                 self.add_alpha_constraint(initial_lb)
             else:
                 print "Solver " + self.solver + " not implemented!"
@@ -450,7 +486,8 @@ class VFApproximator(object):
                     lambda_a = np.array(lambda_a)
 
             else:
-                print "Optimization problem did not solve: status %d" % self.mod.status
+                print "Optimization problem did not solve: status %d, '" % self.mod.status + \
+                      gu_status_codes[self.mod.status] + "'"
                 raise SystemExit()
         elif self.solver == 'ecos':
             self.ecos_dims = {'l': 0, 'q': [], 'e': 0}
@@ -598,8 +635,8 @@ class VFApproximator(object):
                 "lambda_alpha:", [round(p, 5) for p in lambda_a]
 
         if not dodgy_bound:
-            assert np.linalg.norm(np.dot(np.hstack((l.reshape((-1, 1)) for l in self.s.li)),
-                                         lambda_b)
+            stacked_li = np.hstack(tuple(l.reshape((-1, 1)) for l in self.s.li))
+            assert np.linalg.norm(np.dot(stacked_li, lambda_b)
                                   - np.ones((self.s.n_beta,))) <= 1e-2, \
                 "Incorrect lambda_b sum: %.5f\n" % np.sum(lambda_b)
             assert np.all([b >= -1e-4 for b in lambda_b]), \
@@ -615,10 +652,10 @@ class VFApproximator(object):
 
         if self.s.brute_force_solve:
             # Entering this section of code implies extract_constr is False
-            new_bound = Constraint(n=self.n, id_in=len(self.alpha_c_list), const_in=0.,
-                                   lin_in=None, hessian_in=None, sys_in=self.s,
-                                   duals_in=duals, constrs_in=self.alpha_c_in_model,
-                                   xhat_in=xhat, xplus_opt_in=xplus)
+            new_bound = VConstraint(n=self.n, id_in=len(self.alpha_c_list), const_in=0.,
+                                    lin_in=None, hessian_in=None, sys_in=self.s,
+                                    duals_in=duals, constrs_in=self.alpha_c_in_model,
+                                    xhat_in=xhat, xplus_opt_in=xplus)
             existing_vfa = self.eval_vfa(xhat)
             val_without_delta_1 = new_bound.eval_at(xhat, exclude_zeta_1=True)
             _ = new_bound.zeta_1(xhat, value_to_beat=existing_vfa - val_without_delta_1)
@@ -644,9 +681,9 @@ class VFApproximator(object):
                     print "    Using gain 2."
                     bs = self.create_gridded_lb(pi, lambda_a, lambda_b, lambda_c, xhat,
                                                 lb=-3.2, ub=3.2, grid_res=0.1)
-                    new_bound = Constraint(n=self.n, id_in=len(self.alpha_c_list), const_in=0.,
-                                           lin_in=None, hessian_in=None, sys_in=self.s,
-                                           duals_in=None, xhat_in=None, gridded_values=bs)
+                    new_bound = VConstraint(n=self.n, id_in=len(self.alpha_c_list), const_in=0.,
+                                            lin_in=None, hessian_in=None, sys_in=self.s,
+                                            duals_in=None, xhat_in=None, gridded_values=bs)
                     assert np.abs(new_bound.eval_at(xhat) - (opt_cost - duality_gap_2)) <= 1e-3, \
                         "New constraint defined does not take correct value at xhat = " + str(xhat) + \
                         "\n    g(xhat) = %.4f, opt_cost - duality_gap_2 = %.4f." % (new_bound.eval_at(xhat),
@@ -679,9 +716,9 @@ class VFApproximator(object):
                 bound_out_lin += lambda_b[i] * self.s.phi_i_x_lin[i]
                 bound_out_quad += lambda_b[i] * self.s.phi_i_x_quad[i]
 
-            new_bound = Constraint(n=self.n, id_in=len(self.alpha_c_list),
-                                   const_in=bound_out_const, lin_in=bound_out_lin,
-                                   hessian_in=bound_out_quad)
+            new_bound = VConstraint(n=self.n, id_in=len(self.alpha_c_list),
+                                    const_in=bound_out_const, lin_in=bound_out_lin,
+                                    hessian_in=bound_out_quad)
 
             if print_sol:
                 print "s", bound_out_const, "p", bound_out_lin, "P", bound_out_quad
@@ -1183,9 +1220,9 @@ class VFApproximator(object):
             bs = RectBivariateSpline(x1, x2, v_of_x)
             for c in self.alpha_c_in_model:
                 self.remove_alpha_constraint(c)
-            new_bound = Constraint(n=self.n, id_in=len(self.alpha_c_list), const_in=0.,
-                                   lin_in=None, hessian_in=None, sys_in=self.s,
-                                   duals_in=None, xhat_in=None, gridded_values=bs)
+            new_bound = VConstraint(n=self.n, id_in=len(self.alpha_c_list), const_in=0.,
+                                    lin_in=None, hessian_in=None, sys_in=self.s,
+                                    duals_in=None, xhat_in=None, gridded_values=bs)
             self.add_alpha_constraint(new_bound)
         else:
             print "Cannot create gridded lb for state dimension > 2!"
@@ -1203,8 +1240,8 @@ class VFApproximator(object):
         :param conv_tol: Convergence tolerance (max change in iteration across all grid points)
         :return: Tuple of (time taken, largest change in iteration, iterations taken)
         """
-        init_constr = Constraint(n=self.n, id_in=0, const_in=0., sys_in=self.s,
-                                 duals_in=None, gridded_values=None)
+        init_constr = VConstraint(n=self.n, id_in=0, const_in=0., sys_in=self.s,
+                                  duals_in=None, gridded_values=None)
         self.add_alpha_constraint(init_constr)
 
         t1 = time.time()
@@ -1242,7 +1279,7 @@ class VFApproximator(object):
             bs = RegularGridInterpolator([coord_range] * self.n, vk_of_x,
                                          method='linear', bounds_error=False, fill_value=0.)
                                          # Assumes all coords have same grid!
-            new_c = Constraint(self.n, k+1, gridded_values=copy.deepcopy(bs))
+            new_c = VConstraint(self.n, k + 1, gridded_values=copy.deepcopy(bs))
             for old_c in self.alpha_c_in_model:
                 self.remove_alpha_constraint(old_c)
             self.add_alpha_constraint(new_c)
@@ -1266,7 +1303,7 @@ class VFApproximator(object):
         x2 = [y[0] for y in loaded['Y']]
         v_of_x = loaded['mesh']
         bs = RectBivariateSpline(x1, x2, v_of_x)
-        new_c = Constraint(self.n, 1, gridded_values=bs)
+        new_c = VConstraint(self.n, 1, gridded_values=bs)
         self.add_alpha_constraint(new_c)
 
     def add_alpha_constraint(self, constr_in, was_temp_removed=False, temp_add=False):
@@ -1378,7 +1415,7 @@ class VFApproximator(object):
         for c in self.alpha_c_in_model:
             self.remove_alpha_constraint(c)
         # Add initial alpha epigraph constraint
-        initial_lb = Constraint(self.n, 0, 0., None, None)
+        initial_lb = VConstraint(self.n, 0, 0., None, None)
         self.add_alpha_constraint(initial_lb)
 
     def remove_redundant_lbs(self, n_samples, threshold=0., sigma_in=1., mu_in=1.):
@@ -1469,11 +1506,11 @@ class VFApproximator(object):
 
             # Plot results
             plt.plot(plot_range, v.T, alpha=0.2, color='k')
-            plt.plot(plot_range, v_max, linewidth=1.5, color='k', label='$\hat{V}$' + '$(x)$')
+            plt.plot(plot_range, v_max, linewidth=1.5, color='k', label='$\hat{V}(x)$')
 
             if self.s.dare_sol is not None and self.s.pure_lqr:
                 plt.plot(plot_range, [0.5 * x ** 2 * self.s.dare_sol[0, 0] for x in plot_range],
-                         linewidth=1.0, color='r', label='$V^\star$' + '$(x)$ (unconstrained LQR)')
+                         linewidth=1.0, color='r', label='$V^\star (x)$ (unconstrained LQR)')
 
             plt.legend()
             plt.xlim([x_min, x_max])
@@ -1482,7 +1519,7 @@ class VFApproximator(object):
             if self.s.dare_sol is not None:
                 dare_cost_at_bound = 0.5 * self.s.dare_sol[0, 0] * x_max * x_max
                 plt.ylim([-0.05, 1.5 * dare_cost_at_bound])
-            plt.ylabel('$V_J(x)$')
+            plt.ylabel('$\hat{V}_I(x)$')
             if iter_no is not None:
                 plt.title('Value function approximation, %d iterations' % iter_no)
             else:
@@ -1490,8 +1527,8 @@ class VFApproximator(object):
             plt.grid()
 
         elif self.n == 2 or self.n == 4:
-            x1_min, x1_max, res1 = -6, 1, 0.1
-            x2_min, x2_max, res2 = -3, 3, 0.1
+            x1_min, x1_max, res1 = default_x1_min, default_x1_max, default_res1
+            x2_min, x2_max, res2 = default_x2_min, default_x2_max, default_res2
             x1 = np.arange(x1_min, x1_max + res1, res1).tolist()
             x2 = np.arange(x2_min, x2_max + res2, res2).tolist()
             mesh = np.zeros((len(x1), len(x2)), dtype=float)
@@ -1519,7 +1556,8 @@ class VFApproximator(object):
 
             # Axes3D.plot_wireframe(X, Y, mesh)
             plt.imshow(mesh.T, aspect='equal', origin='lower', cmap='bone',
-                       extent=[x1_min, x1_max, x2_min, x2_max], vmin=0, vmax=20)
+                       extent=[x1_min, x1_max, x2_min, x2_max],
+                       vmin=default_2d_vmin, vmax=default_2d_vmax)
             plt.scatter(X, Y, s=2, alpha=0.2, linewidths=0)
             plt.xlim([x1_min, x1_max])
             plt.ylim([x2_min, x2_max])
@@ -1595,13 +1633,11 @@ class VFApproximator(object):
                 u_mesh = np.zeros((len(x1), len(x2)), dtype=float)
                 if self.n == 2:
                     for ind1, x1_plot in enumerate(x1):
-                        print x1_plot
                         for ind2, x2_plot in enumerate(x2):
                             u_mesh[ind1, ind2] = self.solve_for_xhat(np.array([x1_plot, x2_plot]),
                                                                      extract_constr=False)[0][0]
                 elif self.n == 4:
                     for ind1, x1_plot in enumerate(x1):
-                        print x1_plot
                         for ind2, x2_plot in enumerate(x2):
                             u_mesh[ind1, ind2] = self.solve_for_xhat(np.array([x1_plot, 0.,
                                                                                x2_plot, 0.]),
@@ -1671,21 +1707,21 @@ class VFApproximator(object):
         plt.savefig('output/' + self.s.name + '/xalg_BE.pdf')
         plt.close()
 
-
-        plt.figure()
-        plt.plot(xalg_tv_of_x, 100. * (xalg_tv_of_x - xalg_v_of_x) / xalg_v_of_x,
-                 linewidth=0., marker='x')
-
-        if self.__class__.__name__ == "QFApproximator":
-            plt.ylabel('$(T_QQ(x,u) - Q(x,u))/Q(x,u)$ (%)')
-            plt.xlabel('$Q(x,u)$')
-        else:
-            plt.ylabel('$(TV(x) - V(x))/V(x)$ (%)')
-            plt.xlabel('$V(x)$')
-        plt.ylim([min(-1., np.min(100. * (xalg_tv_of_x - xalg_v_of_x) / xalg_v_of_x) * 1.05),
-                  min(100., np.max(100. * (xalg_tv_of_x - xalg_v_of_x) / xalg_v_of_x) * 1.05)])
-        plt.savefig('output/' + self.s.name + '/xalg_BE_by_norm.pdf')
-        plt.close()
+        #
+        # plt.figure()
+        # plt.plot(xalg_tv_of_x, 100. * (xalg_tv_of_x - xalg_v_of_x) / xalg_v_of_x,
+        #          linewidth=0., marker='x')
+        #
+        # if self.__class__.__name__ == "QFApproximator":
+        #     plt.ylabel('$(T_QQ(x,u) - Q(x,u))/Q(x,u)$ (%)')
+        #     plt.xlabel('$Q(x,u)$')
+        # else:
+        #     plt.ylabel('$(TV(x) - V(x))/V(x)$ (%)')
+        #     plt.xlabel('$V(x)$')
+        # plt.ylim([min(-1., np.min(100. * (xalg_tv_of_x - xalg_v_of_x) / xalg_v_of_x) * 1.05),
+        #           min(100., np.max(100. * (xalg_tv_of_x - xalg_v_of_x) / xalg_v_of_x) * 1.05)])
+        # plt.savefig('output/' + self.s.name + '/xalg_BE_by_norm.pdf')
+        # plt.close()
 
     def output_convergence_results(self, data_in, nx, output_dir):
         """Save CSV files and graphs in PDF form regarding convergence of the algorithm
@@ -1705,14 +1741,6 @@ class VFApproximator(object):
         j_max = convergence_j if convergence_j is not None \
             else max([a[0] for a in xalg_integral_results])
 
-        # Calculate DARE mean for plotting comparison
-        if self.s.dare_sol is not None:
-            ind_dare_mean = np.mean([0.5 * np.dot(np.dot(x, self.s.dare_sol), x)
-                                 for x in self.v_integral_x_list])
-            print "  DARE average cost across audit samples is %.2f" % ind_dare_mean
-        else:
-            ind_dare_mean = None
-
         # CSV of XAlg VF approximation mean
         xalg_integral_csv_array = np.array(xalg_integral_results)
         try:
@@ -1721,6 +1749,7 @@ class VFApproximator(object):
                        comments='')
         except Exception as e:
             print "Could not save " + output_dir + '/xalg_lb_M' + str(nx) + '.csv'
+            print e
         # CSV of XAlg Bellman converge nce
         xalg_bellman_csv_array = np.array(xalg_bellman_results)
         try:
@@ -1730,14 +1759,17 @@ class VFApproximator(object):
                        header='Iteration,Mean TV(x)-V(x),Mean (TV(x)-V(x))/V(x),Max TV(x)-V(x),Max (TV(x)-V(x))/V(x)', comments='')
         except Exception as e:
             print "Could not save " + output_dir + '/xalg_bellman_error_M' + str(nx) + '.csv'
+            print e
         # CSV of XAlg closed-loop cost upper bound
         xalg_cl_ub_csv_array = np.array(xalg_cl_ub_results)
-        try:
-            np.savetxt(output_dir + '/xalg_cl_ub_M' + str(nx) + '.csv', xalg_cl_ub_csv_array,
-                       fmt='%d,%.5f,%.5f', delimiter=',', header='Iteration,Mean UB,Mean UB u=0',
-                       comments='')
-        except Exception as e:
-            print "Could not save " + output_dir + '/xalg_cl_ub_M' + str(nx) + '.csv'
+        if xalg_cl_ub_csv_array.shape != (0,):
+            try:
+                np.savetxt(output_dir + '/xalg_cl_ub_M' + str(nx) + '.csv', xalg_cl_ub_csv_array,
+                           fmt='%d,%.5f,%.5f', delimiter=',',
+                           header='Iteration,Mean UB,Mean UB u=0', comments='')
+            except Exception as e:
+                print "Could not save " + output_dir + '/xalg_cl_ub_M' + str(nx) + '.csv'
+                print e
 
         ind_integral_csv_array = np.array(ind_integral_results)
         try:
@@ -1745,6 +1777,7 @@ class VFApproximator(object):
                        fmt='%d,%.5f', delimiter=',', header='Iteration,Mean LB', comments='')
         except Exception as e:
             print "Could not save " + output_dir + '/xalg_lb_M' + str(nx) + '.csv'
+            print e
         # CSV of independent Bellman convergence
         ind_bellman_csv_array = np.array(ind_bellman_results)
         try:
@@ -1753,14 +1786,17 @@ class VFApproximator(object):
                        header='Iteration,Mean TV(x)-V(x),Mean (TV(x)-V(x))/V(x),Max TV(x)-V(x),Max (TV(x)-V(x))/V(x)', comments='')
         except Exception as e:
             print "Could not save " + output_dir + '/ind_bellman_error_M' + str(nx) + '.csv'
+            print e
         # CSV of independent closed-loop cost upper bound
         ind_cl_ub_csv_array = np.array(ind_cl_ub_results)
-        try:
-            np.savetxt(output_dir + '/ind_cl_ub_M' + str(nx) + '.csv', ind_cl_ub_csv_array,
-                       fmt='%d,%.5f,%.5f', delimiter=',', header='Iteration,Mean UB,Mean UB u=0',
-                       comments='')
-        except Exception as e:
-            print "Could not save " + output_dir + '/ind_cl_ub_M' + str(nx) + '.csv'
+        if ind_cl_ub_csv_array.shape != (0,):
+            try:
+                np.savetxt(output_dir + '/ind_cl_ub_M' + str(nx) + '.csv', ind_cl_ub_csv_array,
+                           fmt='%d,%.5f,%.5f', delimiter=',',
+                           header='Iteration,Mean UB,Mean UB u=0', comments='')
+            except Exception as e:
+                print "Could not save " + output_dir + '/ind_cl_ub_M' + str(nx) + '.csv'
+                print e
 
         # Save timing info
         pd.DataFrame([('LB computation time', self.lb_computation_time),
@@ -1770,7 +1806,7 @@ class VFApproximator(object):
                                                                   index=None, float_format='%.4f')
 
         # Plot LB and UB convergence
-        plt.figure(figsize=(8, 12))
+        plt.figure(figsize=(8, 16))
         plt.subplots(3, 1)
         plt.subplot(311)
         plt.plot([a[0] for a in xalg_integral_results], [a[1] for a in xalg_integral_results],
@@ -1786,9 +1822,6 @@ class VFApproximator(object):
         plt.plot([a[0] for a in ind_cl_ub_results], [a[2] for a in ind_cl_ub_results],
                  label='UB, u=0, ind. s')
 
-        # if ind_dare_mean is not None:
-        #     plt.plot(range(j_max+1), [ind_dare_mean] * (j_max+1), color='r',
-        #              label='Unconstr. DARE sol')
         plt.ylabel('Mean LB and UB')
         plt.title('Mean LB and UB for V(x), %d sampled points' % nx)
         plt.ylim([-0.001, 2.0 * np.max([a[1] for a in xalg_integral_results])])
@@ -1863,9 +1896,9 @@ class VFApproximator(object):
         plt.figure()
         plt.plot(range(j_max), lb_constr_count[:j_max])
         plt.xlim([0, j_max])
-        plt.xlabel('Iteration number')
+        plt.xlabel('Iteration number $I$')
         plt.ylabel('No. of constraints')
-        plt.title('Number of $\\alpha$ lower-bounding constraints $g_j(\cdot)$')
+        plt.title('Number of $\\alpha$ lower-bounding constraints $g_i(\cdot)$')
         plt.grid()
         plt.savefig(output_dir + '/constr_count_M' + str(nx) + '.pdf')
         plt.close()
@@ -1934,15 +1967,29 @@ class VFApproximator(object):
         return np.mean(bellman_gap_array), np.mean(rel_bellman_gap_array), \
             np.max(bellman_gap_array), np.max(rel_bellman_gap_array)
 
-    def approximate(self, strategy, audit, outputs):
+    def approximate(self, strategy_in=None, audit_in=None, outputs_in=None):
         """
         Create an iterative approximation of the value function for the system self.s
 
-        :param strategy: Dictionary of parameters describing the solution strategy
-        :param audit: Dict of parameters describing how progress should be tracked during solution
-        :param outputs: Dict of parameters determining outputs produced
+        :param strategy_in: Dictionary of parameters describing the solution strategy
+        :param audit_in: Dict of parameters describing how progress should be tracked during solution
+        :param outputs_in: Dict of parameters determining outputs produced
         :return: Convergence data structure
         """
+
+        # Update approximation parameters to reflect user-specified settings
+        strategy = self.default_strategy
+        audit = self.default_audit
+        outputs = self.default_outputs
+        if strategy_in is not None and isinstance(strategy_in, dict):
+            for (k, v) in strategy_in.iteritems():
+                strategy[k] = v
+        if audit_in is not None and isinstance(audit_in, dict):
+            for (k, v) in audit_in.iteritems():
+                audit[k] = v
+        if outputs_in is not None and isinstance(outputs_in, dict):
+            for (k, v) in outputs_in.iteritems():
+                outputs[k] = v
 
         j_max, n_x_points = strategy['max_iter'], strategy['n_x_points']
         rand_seed = strategy['rand_seed']
