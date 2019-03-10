@@ -3,6 +3,7 @@ import copy
 from matplotlib import pyplot as plt
 from scipy.io import savemat, loadmat
 from scipy.linalg import solve_discrete_are, qr
+from copy import deepcopy
 import os
 
 np.set_printoptions(precision=5)
@@ -205,6 +206,9 @@ class System(object):
 
     def get_attribute(self, attr_name):
         return getattr(self, attr_name)
+
+    def copy(self):
+        return deepcopy(self)
 
     def f_x_x(self, x=None):
         # Evaluate f_x(x) (system dynamics are of the form x_plus = f_x(x) + F_u(x)u )

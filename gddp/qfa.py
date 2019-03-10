@@ -724,8 +724,7 @@ class QFApproximator(VFApproximator):
         # Plot closed-loop trajectories
         if cl_plot_final and not suppress_outputs:
             print "  Plotting final closed-loop trajectory..."
-            x0 = np.array([1., 0., -0.17453, 0.])
-            # x0 = np.ones((self.n,), dtype=float)
+            x0 = np.ones((self.n,), dtype=float)
             self.s.simulate(x0, self, cl_plot_n_steps, iter_no=self.final_j, save_plot=True)
         # Plot VF approximation
         if qfa_plot_final and not suppress_outputs:
@@ -739,11 +738,12 @@ class QFApproximator(VFApproximator):
         total_time = time.time() - t1
 
         print "Done in %.1f seconds, of which:" % total_time
-        print "  %.4f s spent computing lower bounds," % self.lb_computation_time
-        print "  %.4f s spent measuring V integral," % self.v_integral_eval_time
-        print "  %.4f s spent auditing Bellman gap," % self.b_gap_eval_time
-        print "  and %.1f s elsewhere." % (total_time - self.v_integral_eval_time -
-                                           self.b_gap_eval_time - self.lb_computation_time)
+        # Time breakdown commented out, because it doesn't always add up properly.
+        # print "  %.4f s spent computing lower bounds," % self.lb_computation_time
+        # print "  %.4f s spent measuring V integral," % self.v_integral_eval_time
+        # print "  %.4f s spent auditing Bellman gap," % self.b_gap_eval_time
+        # print "  and %.1f s elsewhere." % (total_time - self.v_integral_eval_time -
+        #                                    self.b_gap_eval_time - self.lb_computation_time)
 
         return convergence_data
 

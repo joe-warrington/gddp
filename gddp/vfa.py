@@ -2403,11 +2403,12 @@ class VFApproximator(object):
 
         total_time = time.time() - t1
 
-        print "Done in %.1f seconds, of which:" % total_time
-        print "  %.1f s spent computing lower bounds," % self.lb_computation_time
-        print "  %.1f s spent measuring V integral," % self.v_integral_eval_time
-        print "  %.1f s spent auditing Bellman gap," % self.b_gap_eval_time
-        print "  and %.1f s elsewhere." % (total_time - self.v_integral_eval_time -
-                                           self.b_gap_eval_time - self.lb_computation_time)
+        print "Done in %.1f seconds." % total_time
+        # Time breakdown commented out, because it doesn't always add up properly.
+        # print "  %.1f s spent computing lower bounds," % self.lb_computation_time
+        # print "  %.1f s spent measuring V integral," % self.v_integral_eval_time
+        # print "  %.1f s spent auditing Bellman gap," % self.b_gap_eval_time
+        # print "  and %.1f s elsewhere." % (total_time - self.v_integral_eval_time -
+        #                                    self.b_gap_eval_time - self.lb_computation_time)
 
         return convergence_data
