@@ -737,7 +737,7 @@ class QFApproximator(VFApproximator):
 
         total_time = time.time() - t1
 
-        print "Done in %.1f seconds, of which:" % total_time
+        print "Done in %.1f seconds." % total_time
         # Time breakdown commented out, because it doesn't always add up properly.
         # print "  %.4f s spent computing lower bounds," % self.lb_computation_time
         # print "  %.4f s spent measuring V integral," % self.v_integral_eval_time
