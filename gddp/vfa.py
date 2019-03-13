@@ -722,8 +722,14 @@ class VFApproximator(object):
             plt.show()
         plt.close()
 
-    def print_function_approximation(self, save=False):
-        # Outputs a string representation of the function approximation, optionally also to file.
+    def print_function_approximation(self, command_line=True, save=False):
+        """Outputs a string representation of the function approximation, optionally also to file.
+
+        :param command_line: Boolean, print to command line
+        :param save: Boolean, save to text file
+        :return:
+        """
+        #
         if self.__class__.__name__ == "QFApproximator":
             string_out = "Approximate QF is max_i{q_i(x,u)}, where:\n"
             per_constraint_string_prefix = "  q_"
@@ -739,7 +745,8 @@ class VFApproximator(object):
             string_out += per_constraint_string_prefix + str(c.id) + \
                 per_constraint_string_suffix + function_string + ",\n"
         string_out = string_out[:-2]  # Cut off final comma and carriage return ",\n"
-        print string_out
+        if command_line:
+            print string_out
         if save:
             try:
                 with open('output/' + self.s.name + '/' + filename, 'w') as text_file:
@@ -748,6 +755,21 @@ class VFApproximator(object):
                 print "Could not write QF approximation description to 'output/" + \
                       self.s.name + "/" + filename + "'."
                 print e
+
+    def save_function_approximation(self):
+        # Saves the lower-bounding functions that describe the value function approximation as a
+        # .mat file. The constant, linear, and quadratic parts are stored in separate lists.
+        # The functions take the form g_i(x) = c.const + (c.lin)'x + 0.5 * x'(c.hessian)x.
+        const_list, x_lin_list, x_quad_list = [], [], []
+        for c in self.alpha_c_in_model:
+            const_list.append(c.const)
+            x_lin_list.append(c.lin)
+            mat_to_append = c.hessian if c.hessian is not None else np.zeros((self.n, self.n))
+            x_quad_list.append(mat_to_append)
+        savemat('output/' + self.s.name + '/vfa_description.mat', {'g_const': const_list,
+                                                                   'g_lin': x_lin_list,
+                                                                   'g_quad': x_quad_list},
+                oned_as='column')
 
     def plot_policy(self, iter_no=None, save=False, output_dir=None, policy_in=None):
         """Save or plot control policy for 1 or 2 dimensions. In 2D, omputes the control policy at

@@ -1122,6 +1122,29 @@ class QFApproximator(VFApproximator):
         plt.savefig('output/' + self.s.name + '/xalgualg_QBE_by_norm.pdf')
         plt.close()
 
+    def save_function_approximation(self):
+        # Saves the lower-bounding functions that describe the value function approximation as a
+        # .mat file. The constant, linear, and quadratic parts are stored in separate lists.
+        # The functions take the form q_i(x,u) = c.const + (c.lin)'x + 0.5 * x'(c.hessian)x.
+        const_list, x_lin_list, x_quad_list = [], [], []
+        u_lin_list, u_quad_list = [], []
+        for c in self.alpha_c_in_model:
+            const_list.append(c.const)
+            x_lin_list.append(c.x_lin)
+            mat_to_append = c.x_hessian if c.x_hessian is not None else np.zeros((self.n, self.n))
+            mat_to_append += self.s.phi_i_x_quad[0]
+            x_quad_list.append(mat_to_append)
+            u_lin_list.append(c.u_lin)
+            mat_to_append = c.u_hessian if c.u_hessian is not None else np.zeros((self.m, self.m))
+            mat_to_append += self.s.Ri[0]
+            u_quad_list.append(mat_to_append)
+        savemat('output/' + self.s.name + '/qfa_description.mat', {'q_const': const_list,
+                                                                   'q_x_lin': x_lin_list,
+                                                                   'q_x_quad': x_quad_list,
+                                                                   'q_u_lin': u_lin_list,
+                                                                   'q_u_quad': u_quad_list},
+                oned_as='column')
+
     def output_convergence_results(self, data_in, nx, bell_tol_in, output_dir):
         """Save CSV files and graphs in PDF form regarding convergence of the algorithm
 

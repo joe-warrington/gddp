@@ -61,10 +61,6 @@ class VConstraint(object):
             print "Can't create constraints from dual variables alone! Exiting."
             raise SystemExit()
         else:
-            self.lambda_a_hat, self.lambda_b_hat, self.lambda_c_hat, self.pi_hat = None, None, None, None
-            self.lambdas_and_cs = None
-            self.xhat = None
-            self.grid = None
             self.qp_compatible = True
 
         # Set the below to True if defined using erroneous dual variables
@@ -94,58 +90,6 @@ class VConstraint(object):
         if string_out == "":
             string_out = "0"
         return string_out
-
-    def repair_duals(self, duals_in):
-        # Minimize (lambda - lambda_raw)^2 subject to feasibility constraints "fixing" the solution.
-
-        lambda_a_raw, lambda_b_raw, lambda_c_raw, pi_raw = duals_in
-
-        m_a = gu.Model('Fix alpha duals')
-        m_a.params.outputflag = 0
-        qe = gu.QuadExpr()
-        le = gu.LinExpr()
-        n_alpha = lambda_a_raw.shape[0]
-        x = []
-        for i in range(n_alpha):
-            x.append(m_a.addVar(lb=0.0, vtype='c'))
-            qe += x[i] * x[i]
-            le += -2 * lambda_a_raw[i] * x[i]
-        m_a.setObjective(qe + le)
-        m_a.update()
-        m_a.addConstr(gu.LinExpr([(1.0, var) for var in x]) == self.s.gamma)
-        m_a.optimize()
-        if m_a.status == 2:
-            sol_vec = [v.x for v in m_a.getVars()]
-            lambda_a_fixed = np.array(sol_vec)
-        else:
-            print "Fixing duals in constraint " + self.id + "failed! Exiting."
-            raise SystemExit()
-        m_b = gu.Model('Fix beta duals')
-        m_b.params.outputflag = 0
-        qe = gu.QuadExpr()
-        le = gu.LinExpr()
-        n_beta_c = lambda_b_raw.shape[0]
-        y = []
-        for i in range(n_beta_c):
-            y.append(m_b.addVar(lb=0.0, vtype='c'))
-            qe += y[i] * y[i]
-            le += -2 * lambda_b_raw[i] * y[i]
-        m_b.setObjective(qe + le)
-        m_b.update()
-        for l in range(self.s.n_beta):
-            m_b.addConstr(gu.LinExpr([(self.s.li[i][l], var) for i, var in enumerate(y)]) == 1.0)
-        m_b.optimize()
-        if m_b.status == 2:
-            sol_vec = [v.x for v in m_b.getVars()]
-            lambda_b_fixed = np.array(sol_vec)
-        else:
-            print "Fixing duals in constraint " + self.id + "failed! Exiting."
-            raise SystemExit()
-
-        assert np.linalg.norm(lambda_a_fixed - lambda_a_raw) <= 1e-4, str(lambda_a_fixed) + str(lambda_a_raw)
-        assert np.linalg.norm(lambda_b_fixed - lambda_b_raw) <= 1e-4, str(lambda_b_fixed) + str(lambda_b_raw)
-
-        return lambda_a_fixed, lambda_b_fixed, lambda_c_raw, pi_raw
 
     def update_coeffs(self, const_in=None, lin_in=None, hessian_in=None):
         """For const + linear + quadratic models, update one or more of these terms"""
