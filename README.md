@@ -1,6 +1,6 @@
 # GDDP
 
-Generalized dual dynamic programming (GDDP) tool written in Python. This tool creates lower bounds on a given control problem's optimal value function using the Benders decomposition approach developed in [1].
+Generalized dual dynamic programming (GDDP) tool written in Python. This tool creates an approximate lower bounds on a given control problem's optimal value function using the Benders decomposition approach developed in [1].
 
 ## Getting Started
 
@@ -40,4 +40,4 @@ qfa.approximate()
 
 [1] J. Warrington, P. Beuchat, J. Lygeros, "Generalized Dual Dynamic Programming for Infinite Horizon Problems in Continuous State and Action Spaces", _IEEE Transactions on Automatic Control, to appear December 2019._
 
-[2] J. Warrington, "Learning Q-Functions via generalized Benders cuts", _European Control Conference 2019, Naples, Italy, June 2019._
+[2] J. Warrington, "Learning Continuous Q-Functions via generalized Benders cuts", _European Control Conference 2019, Naples, Italy, June 2019._

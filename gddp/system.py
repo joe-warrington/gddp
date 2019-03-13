@@ -200,7 +200,7 @@ class System(object):
                 attr_value_to_enter = attr_value
             setattr(self, attr_name, attr_value_to_enter)
             print "Attribute '" + attr_name + "' changed to "
-            print getattr(self, attr_name)
+            print " ", getattr(self, attr_name)
         else:
             raise SystemError("Cannot modify attribute '" + attr_name + "'! Exiting.")
 

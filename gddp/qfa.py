@@ -1,21 +1,15 @@
 import numpy as np
 import time
 import gurobipy as gu
-import scipy.sparse as sp
-import scipy.linalg
 import copy
 import pandas as pd
-import itertools
 from matplotlib import pyplot as plt
-from scipy.interpolate import RectBivariateSpline
 from scipy.io import savemat, loadmat
-from scipy.optimize import nnls, minimize_scalar
-from scipy.stats import laplace, uniform
-from pprint import pprint
+from scipy.stats import laplace
 import os
 from gddp import QConstraint
-np.seterr(divide='ignore')
 from vfa import VFApproximator
+np.seterr(divide='ignore')
 
 default_qf_approx_strategy = {'max_iter': 100,
                               'n_z_points': 100, 'rand_seed': 1,
@@ -27,8 +21,7 @@ default_qf_approx_strategy = {'max_iter': 100,
                               'removal_resolution': 100000,
                               'focus_on_origin': False, 'consolidate_constraints': False,
                               'consolidation_freq': False,
-                              'value_function_limit': 10000,
-                              'brute_force_grid_res': 100}
+                              'value_function_limit': 10000}
 
 default_qf_approx_outputs = {'cl_plot_j': False, 'cl_plot_freq': 20, 'cl_plot_final': False,
                              'cl_plot_n_steps': 50,
@@ -42,6 +35,10 @@ default_qf_approx_outputs = {'cl_plot_j': False, 'cl_plot_freq': 20, 'cl_plot_fi
 default_x1_min, default_x1_max, default_x1_res = -3, 3, 0.1
 default_u1_min, default_u1_max, default_u1_res = -3, 3, 0.1
 default_n1m1_vmin, default_n1m1_vmax = None, None
+
+# Default uniform distribution properties, per dimension
+x_unif_lower_default, x_unif_upper_default = [-3.], [3.]
+
 
 class QFApproximator(VFApproximator):
 
@@ -127,17 +124,9 @@ class QFApproximator(VFApproximator):
 
             # Update model to reflect constraints
             self.mod.update()
-
-        elif self.solver == 'ecos':
-            print "ECOS Q-function approximator model not implemented. Exiting."
-            raise SystemExit()
         else:
-            if self.s.brute_force_solve:
-                initial_lb = QConstraint(self.n, self.m, 0, 0., None, None)
-                self.add_alpha_constraint(initial_lb)
-            else:
-                print "Solver " + self.solver + " not implemented!"
-                raise SystemExit()
+            print "Solver " + self.solver + " not implemented!"
+            raise SystemExit()
 
     def create_qf_policy_model(self):
         if self.solver == 'gurobi':
@@ -192,17 +181,9 @@ class QFApproximator(VFApproximator):
 
             # Update model to reflect constraints
             self.pmod.update()
-
-        elif self.solver == 'ecos':
-            print "ECOS Q-function approximator model not implemented. Exiting."
-            raise SystemExit
         else:
-            if self.s.brute_force_solve:
-                initial_lb = QConstraint(self.n, self.m, 0, 0., None, None)
-                self.add_alpha_constraint(initial_lb)
-            else:
-                print "Solver " + self.solver + " not implemented!"
-                raise SystemExit()
+            print "Solver " + self.solver + " not implemented!"
+            raise SystemExit()
 
     def update_constraints_for_xhatuhat(self, xhat, uhat, xplus_constraint):
         """Update constraint of optimization model to account for the current state, which enters
@@ -252,15 +233,9 @@ class QFApproximator(VFApproximator):
             #     c = [l for l in self.mod.getConstrs() if "forced_xplus_" in l.ConstrName]
             #     for l in c:
             #         self.mod.remove(l)
-        elif self.solver == 'ecos':
-            print "ECOS Q-function approximator model not implemented. Exiting."
-            raise SystemExit
         else:
-            if self.s.brute_force_solve:
-                pass
-            else:
-                print "Solver " + self.solver + " not implemented!"
-                raise SystemExit()
+            print "Solver " + self.solver + " not implemented!"
+            raise SystemExit()
 
     def approximate(self, strategy_in=None, audit_in=None, outputs_in=None):
         """
@@ -318,7 +293,8 @@ class QFApproximator(VFApproximator):
         # Create M samples for VF fitting
         np.random.seed(rand_seed)
         distr = 'uniform'
-        x_unif_lower, x_unif_upper = [0.], [3.]
+        x_unif_lower = [x_unif_lower_default] * self.n
+        x_unif_upper = [x_unif_upper_default] * self.n
         if focus_on_origin:
             if distr == 'normal':
                 xalg_list = [self.s.state_mean + np.dot(np.sqrt(self.s.state_var),
@@ -747,8 +723,8 @@ class QFApproximator(VFApproximator):
 
         return convergence_data
 
-    def solve_for_xhatuhat(self, xhat, uhat, print_sol=False, extract_constr=True, print_errors=False,
-                           iter_no=None, alt_bound=False, xplus_constraint=None):
+    def solve_for_xhatuhat(self, xhat, uhat, print_sol=False, extract_constr=True,
+                           print_errors=False, iter_no=None, xplus_constraint=None):
         """ Solve one-stage optimization problem, optionally returning a lower-bounding function
         on the optimal value function.
 
@@ -758,7 +734,6 @@ class QFApproximator(VFApproximator):
         :param extract_constr: Boolean, extract constraint (returns different values if so)
         :param print_errors: Boolean, print error information
         :param iter_no: Integer, iteration number of the GDDP algorithm
-        :param alt_bound: Boolean, return alternative lower-bounding function using other dual
         :param xplus_constraint: e-element array or None, Force successor state to this value
         :return: If extract_constr: new lower bound, (u*, x+*, beta*, alpha*)
                  Otherwise: u*, optimal cost, stage cost
@@ -866,140 +841,9 @@ class QFApproximator(VFApproximator):
             else:
                 print "Optimization problem did not solve: status %d" % self.mod.status
                 raise SystemExit()
-        elif self.solver == 'ecos':
-            print "Solver 'ecos' not implemented. Exiting."
-            raise SystemExit()
-            # self.ecos_dims = {'l': 0, 'q': [], 'e': 0}
-            # G_quad, h_quad = None, None
-            # # Add state-input constraints
-            # G_lin = self.ecos_si_constrs[0]
-            # h_lin = self.ecos_si_constrs[1]
-            # self.ecos_dims['l'] += self.ecos_si_constrs[0].shape[0]
-            # for i, tup in enumerate(self.ecos_beta_constrs + self.ecos_alpha_constrs):
-            #     if tup[2] == 'soc':
-            #         if G_quad is None:
-            #             G_quad = tup[0]
-            #             h_quad = tup[1]
-            #         else:
-            #             G_quad = sp.vstack((G_quad, tup[0]), format='csc')
-            #             h_quad = np.hstack((h_quad, tup[1]))
-            #         self.ecos_dims['q'].append(tup[0].shape[0])
-            #     elif tup[2] == 'lin':
-            #         assert tup[0].shape[0] == 1
-            #         G_lin = sp.vstack((G_lin, tup[0]), format='csc')
-            #         h_lin = np.hstack((h_lin, tup[1]))
-            #         self.ecos_dims['l'] += tup[0].shape[0]
-            #     else:
-            #         print "Unrecognized beta constraint type: " + tup[2]
-            #         raise SystemExit()
-            #
-            # if G_quad is not None:
-            #     G = sp.vstack((G_lin, G_quad), format='csc')
-            #     h = np.hstack((h_lin, h_quad))
-            # else:
-            #     G = G_lin
-            #     h = h_lin
-            #
-            # # print "c", self.ecos_c
-            # # print "A, b", self.ecos_A.todense(), self.ecos_b
-            # # print "G", G.todense(), isinstance(G, sp.csc_matrix)
-            # # print "h", h
-            #
-            # ts1 = time.time()
-            #
-            # sol = ecos.solve(self.ecos_c, G, h, self.ecos_dims,
-            #                  self.ecos_A, self.ecos_b, verbose=False)
-            # self.one_stage_problems_solved += 1
-            # if sol['info']['exitFlag'] not in [0, 10]:
-            #     print "ECOS did not solve to optimality: exit flag %d" % sol['info']['exitFlag']
-            #     pprint(sol['info'])
-            #     raise SystemExit()
-            #
-            # self.total_solver_time += time.time() - ts1
-            #
-            # sol_vec = sol['x']
-            # opt_cost = sol['info']['pcost']
-            #
-            # # Can just return the optimal input if we are only interested in that
-            # if extract_constr is False:
-            #     xplus = sol_vec[self.m:self.m+self.n]
-            #     stage_cost = opt_cost - self.s.gamma * self.eval_vfa(xplus)
-            #     return sol_vec[:self.m], opt_cost, stage_cost
-            #
-            # # pprint(sol)
-            # dodgy_bound = False
-            # # print sol['info']
-            #
-            # u_opt = sol_vec[:self.m]
-            # x_plus_opt = sol_vec[self.m:self.m+self.n]
-            # beta_opt = sol_vec[self.m+self.n:-1]
-            # alpha_opt = sol_vec[-1]
-            # pi = sol['y']
-            # lambda_c = sol['z'][:self.ecos_si_constrs[0].shape[0]]
-            #
-            # # Solve KKT system for lambda_b
-            # r_mat = np.hstack((r.T + np.dot(self.s.Ri[i], sol_vec[:self.m]).T
-            #                    for i, r in enumerate(self.s.ri)))
-            # l_mat = np.hstack((l.reshape((self.s.n_beta, 1)) for l in self.s.li))
-            # beta_mat = np.vstack((r_mat, l_mat))
-            # beta_vec = np.hstack((np.dot(self.s.f_u_x(xhat).T, pi) + np.dot(self.s.E.T, lambda_c),
-            #                       np.ones(self.n_beta,)))
-            # for i, r in enumerate(self.s.ri):
-            #     slack = -(self.s.phi_i_x(i, xhat) + np.dot(r, u_opt) +
-            #               0.5 * np.dot(u_opt, np.dot(self.s.Ri[i], u_opt)) + self.s.ti[i] -
-            #               np.dot(self.s.li[i], beta_opt))
-            #     if slack >= 1e-6:
-            #         slack_mat = np.zeros((1, self.s.n_beta_c), dtype=float)
-            #         slack_mat[0, i] = 1.
-            #         beta_mat = np.vstack((beta_mat,
-            #                               slack_mat))
-            #         beta_vec = np.hstack((beta_vec, np.zeros((1,))))
-            # lambda_b, _ = nnls(beta_mat, beta_vec)
-            #
-            # # Solve KKT system for lambda_a
-            # lambda_a = []
-            # if check_lambda_a:
-            #     j_so_far = len(self.alpha_c_in_model)
-            #     q_mat = np.zeros((self.n, j_so_far), dtype=float)
-            #     for j, c in enumerate(self.alpha_c_in_model):
-            #         q_mat[:, j] = c.lin.T
-            #         if not c.no_hessian:
-            #             q_mat[:, j] += np.dot(c.hessian, x_plus_opt).T
-            #     alpha_mat = np.vstack((q_mat, np.ones((1, j_so_far))))
-            #     alpha_vec = np.hstack((-pi, np.array([self.s.gamma])))
-            #     for j, c in enumerate(self.alpha_c_in_model):
-            #         slack = alpha_opt - c.eval_at(x_plus_opt)
-            #         if slack >= 1e-2:
-            #             alpha_mat = np.vstack((alpha_mat,
-            #                                    np.hstack((np.zeros((1, j)),
-            #                                               np.ones((1, 1)),
-            #                                               np.zeros((1, j_so_far - j - 1))))))
-            #             alpha_vec = np.hstack((alpha_vec, np.zeros((1,))))
-            #     lambda_a, _ = nnls(alpha_mat, alpha_vec)
-            #
-            # pi = -pi  # ECOS uses opposite sign convention for == constraint multiplier to Gurobi
         else:
-            if self.s.brute_force_solve:
-                if extract_constr:
-                    dodgy_bound = False
-                    sol_vec, opt_cost, delta_1, delta_alt, duals, kkt_res = \
-                        self.brute_force_solve_for_xhat(xhat, True, print_errors,
-                                                        iter_no=iter_no,
-                                                        alt_bound=alt_bound)
-                    lambda_a, lambda_b, lambda_c, pi = duals
-                    xplus = sol_vec[self.m:self.n + self.m]
-                    self.one_stage_problems_solved += 1
-                else:
-                    sol_vec, opt_cost = self.brute_force_solve_for_xhat(xhat, False, print_errors,
-                                                                        iter_no=iter_no,
-                                                                        alt_bound=alt_bound)
-                    self.one_stage_problems_solved += 1
-                    xplus = sol_vec[self.m:self.n+self.m]
-                    stage_cost = opt_cost - self.s.gamma * self.eval_vfa(xplus)
-                    return sol_vec[:self.m], opt_cost, stage_cost
-            else:
-                print "Solver " + self.solver + " not implemented!"
-                raise SystemExit()
+            print "Solver " + self.solver + " not implemented!"
+            raise SystemExit()
 
         if print_sol:
             print "Optimal cost:", opt_cost
@@ -1018,96 +862,34 @@ class QFApproximator(VFApproximator):
             assert np.all([a > -1e-4 for a in lambda_a]), \
                 "Not all lambda_a multipliers positive! " + repr(lambda_a)
 
-        if self.s.brute_force_solve:
-            # Entering this section of code implies extract_constr is False
-            new_bound = QConstraint(n=self.n, m=self.m, id_in=len(self.alpha_c_list), const_in=0.,
-                                   lin_in=None, hessian_in=None, sys_in=self.s,
-                                   duals_in=duals, constrs_in=self.alpha_c_in_model,
-                                   xhat_in=xhat, xplus_opt_in=xplus)
-            existing_vfa = self.eval_vfa(xhat)
-            val_without_delta_1 = new_bound.eval_at(xhat, exclude_zeta_1=True)
-            _ = new_bound.zeta_1(xhat, value_to_beat=existing_vfa - val_without_delta_1)
+        f_x_const, f_x_lin = self.s.f_x_x(None)
+        f_u_lin = self.s.f_u_x(None)
 
-            duality_gap_1 = opt_cost - new_bound.eval_at(xhat)
-            constraint_gain_1 = new_bound.eval_at(xhat) - self.eval_vfa(xhat)
-            print "    Primal optimal: %.4f, dual optimal: %.4f, duality gap: %.4f" % \
-                  (opt_cost, opt_cost - duality_gap_1, duality_gap_1)
-            print "    Existing value function at this x: %.4f" % self.eval_vfa(xhat)
-            print "    Gain from new constraint at this x: %.4f" % constraint_gain_1
+        # (lambda_a, lambda_b, lambda_c, pi) = self.fix_duals((np.array(lambda_a),
+        #                                                      np.array(lambda_b),
+        #                                                      np.array(lambda_c),
+        #                                                      np.array(pi)))
 
-            if alt_bound:
-                duality_gap_2 = opt_cost - (lambda_b[0] * self.s.phi_i_x(0, xhat) -
-                                            np.dot(lambda_c, self.s.h_x(xhat)) +
-                                            delta_alt)
-                constraint_gain_2 = (opt_cost - duality_gap_2) - self.eval_vfa(xhat)
-                print "    Primal optimal: %.4f, dual optimal 2: %.4f, duality gap 2: %.4f" % \
-                      (opt_cost, opt_cost - duality_gap_2, duality_gap_2)
-                print "    Gain 2 from new constraint at this x: %.4f" % constraint_gain_2
+        # Including stage cost:
+        # bound_out_const = opt_cost - stage_cost - np.dot(pi, xplus)
+        # bound_out_x_lin = self.s.phi_i_x_lin[0] + np.dot(pi, f_x_lin)
+        # bound_out_u_lin = self.s.ri[0] + np.dot(pi, f_u_lin)
+        # bound_out_x_quad, bound_out_u_quad = self.s.phi_i_x_quad[0], self.s.Ri[0]
 
-                if constraint_gain_2 > 0.5 and constraint_gain_1 < 1e-3 and not dodgy_bound:
-                    # Replace standard duality constraint with fancy alternative-dual one
-                    print "    Using gain 2."
-                    bs = self.create_gridded_lb(pi, lambda_a, lambda_b, lambda_c, xhat,
-                                                lb=-3.2, ub=3.2, grid_res=0.1)
-                    new_bound = QConstraint(n=self.n, m=self.m, id_in=len(self.alpha_c_list),
-                                            const_in=0., lin_in=None, hessian_in=None,
-                                            duals_in=None, xhat_in=None, gridded_values=bs)
-                    assert np.abs(new_bound.eval_at(xhat) - (opt_cost - duality_gap_2)) <= 1e-3, \
-                        "New constraint defined does not take correct value at xhat = " + str(xhat) + \
-                        "\n    g(xhat) = %.4f, opt_cost - duality_gap_2 = %.4f." % (new_bound.eval_at(xhat),
-                                                                                    opt_cost - duality_gap_2)
-                if constraint_gain_1 < 1e-3 and constraint_gain_2 < 1e-3:
-                    new_bound.worthless = True
-            else:
-                if constraint_gain_1 < 1e-3:
-                    new_bound.worthless = True
+        # Excluding stage cost:
+        xhat_uhat_stage_cost = self.s.quad_stage_cost(xhat, uhat)
+        bound_out_const = opt_cost - xhat_uhat_stage_cost - np.dot(pi, xplus)
+        bound_out_x_lin = np.dot(pi, f_x_lin)
+        bound_out_u_lin = np.dot(pi, f_u_lin)
+        bound_out_x_quad = None
+        bound_out_u_quad = None
+        new_bound = QConstraint(n=self.n, m=self.m, id_in=len(self.alpha_c_list),
+                                const_in=bound_out_const, x_lin_in=bound_out_x_lin,
+                                x_hessian_in=bound_out_x_quad, u_lin_in=bound_out_u_lin,
+                                u_hessian_in=bound_out_u_quad, sys_in=self.s)
 
-            if kkt_res >= 1e-3:
-                dodgy_bound = True
-
-        else:
-            f_x_const, f_x_lin = self.s.f_x_x(None)
-            f_u_lin = self.s.f_u_x(None)
-
-            # (lambda_a, lambda_b, lambda_c, pi) = self.fix_duals((np.array(lambda_a),
-            #                                                      np.array(lambda_b),
-            #                                                      np.array(lambda_c),
-            #                                                      np.array(pi)))
-
-            # Including stage cost:
-            # bound_out_const = opt_cost - stage_cost - np.dot(pi, xplus)
-            # bound_out_x_lin = self.s.phi_i_x_lin[0] + np.dot(pi, f_x_lin)
-            # bound_out_u_lin = self.s.ri[0] + np.dot(pi, f_u_lin)
-            # bound_out_x_quad, bound_out_u_quad = self.s.phi_i_x_quad[0], self.s.Ri[0]
-            # Excluding stage cost:
-            xhat_uhat_stage_cost = self.s.quad_stage_cost(xhat, uhat)
-            bound_out_const = opt_cost - xhat_uhat_stage_cost - np.dot(pi, xplus)
-            bound_out_x_lin = np.dot(pi, f_x_lin)
-            bound_out_u_lin = np.dot(pi, f_u_lin)
-            bound_out_x_quad = None
-            bound_out_u_quad = None
-
-            new_bound = QConstraint(n=self.n, m=self.m, id_in=len(self.alpha_c_list),
-                                    const_in=bound_out_const, x_lin_in=bound_out_x_lin,
-                                    x_hessian_in=bound_out_x_quad, u_lin_in=bound_out_u_lin,
-                                    u_hessian_in=bound_out_u_quad)
-
-            if print_sol:
-                print "s", bound_out_const, "p", bound_out_x_lin, "P", bound_out_x_quad
-
-        # Code specific to VFA_Region subclass:
-        if hasattr(self, "region") and hasattr(self, "regions"):  # region=function, regions=dict
-            assert hasattr(self, 'bound_all_regions')
-            if not self.bound_all_regions:
-                current_region = self.region(xhat)
-                new_bound.assign_regions([current_region],
-                                         self.regions[current_region][0],
-                                         self.regions[current_region][1])
-            else:
-                [box_lb1, box_ub1, box_lb2, box_ub2] = self.region_outer_bounds
-                new_bound.assign_regions([r for r in self.regions.iterkeys()],
-                                         A=np.array([[1, 0], [-1, 0], [0, 1], [0, -1]]),
-                                         b=[box_ub1, -box_lb1, box_ub2, -box_lb2])
+        if print_sol:
+            print "s", bound_out_const, "p", bound_out_x_lin, "P", bound_out_x_quad
 
         new_bound_value_at_eq = new_bound.eval_at(np.array([0.] * self.n), np.array([0.] * self.m))
         if new_bound_value_at_eq > 1e-3:
@@ -1127,7 +909,7 @@ class QFApproximator(VFApproximator):
 
     def q_policy(self, xhat):
         if self.solver == 'gurobi':
-            # Update model constraints to fix to Q(xhat, u)
+            # Update model constraints to fix the function we are minimizing to Q(xhat, u)
             for i in range(self.n):
                 self.pmod_c[i].setAttr('RHS', xhat[i])
             self.pmod.update()
@@ -1207,22 +989,9 @@ class QFApproximator(VFApproximator):
                                     name=c_name))
             self.mod.update()
             self.pmod.update()
-        elif self.solver == 'ecos':
-            lin_ecos = np.hstack((np.zeros((self.m,)),
-                                  x_lin,
-                                  np.zeros((self.n_beta,)),
-                                  np.array([-1.])))
-            quad_ecos = scipy.linalg.block_diag(np.zeros((self.m, self.m)),
-                                                x_hess,
-                                                np.zeros((self.n_beta + 1, self.n_beta + 1)))
-            G_out, h_out, type_out = self.build_ecos_constraint(const, lin_ecos, quad_ecos)
-            self.ecos_alpha_constrs.append((G_out, h_out, type_out, constr_id))
         else:
-            if self.s.brute_force_solve:
-                pass
-            else:
-                print "Solver " + self.solver + " not implemented!"
-                raise SystemExit()
+            print "Solver " + self.solver + " not implemented!"
+            raise SystemExit()
         # Add to list of model constraints and mark as added to model
         if not was_temp_removed and not temp_add:
             self.alpha_c_list.append(constr_in)
