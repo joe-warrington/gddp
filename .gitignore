@@ -3,3 +3,13 @@ gurobi.log
 .idea
 output/*
 *.pyc
+docs/html/*
+docs/latex/*.eps
+docs/latex/*.pdf
+docs/latex/*.aux
+docs/latex/*.log
+docs/latex/*.toc
+docs/latex/*.idx
+docs/latex/*.out
+docs/latex/*.gz
+docs/latex/Makefile

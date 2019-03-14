@@ -1,0 +1,305 @@
+\hypertarget{classgddp_1_1qfa_1_1_q_f_approximator}{}\section{gddp.\+qfa.\+Q\+F\+Approximator Class Reference}
+\label{classgddp_1_1qfa_1_1_q_f_approximator}\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+Inheritance diagram for gddp.\+qfa.\+Q\+F\+Approximator\+:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=3.000000cm]{classgddp_1_1qfa_1_1_q_f_approximator}
+\end{center}
+\end{figure}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+def \mbox{\hyperlink{classgddp_1_1qfa_1_1_q_f_approximator_a93a03d1246461e93c47cb88b8991cae8}{\+\_\+\+\_\+init\+\_\+\+\_\+}} (self, system, solver=\textquotesingle{}gurobi\textquotesingle{})
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a0a643f1e288003f351f110f4a6f9057e}\label{classgddp_1_1qfa_1_1_q_f_approximator_a0a643f1e288003f351f110f4a6f9057e}} 
+def {\bfseries create\+\_\+qfa\+\_\+model} (self)
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_aed07591908371b31de45560206fc33df}\label{classgddp_1_1qfa_1_1_q_f_approximator_aed07591908371b31de45560206fc33df}} 
+def {\bfseries create\+\_\+qf\+\_\+policy\+\_\+model} (self)
+\item 
+def \mbox{\hyperlink{classgddp_1_1qfa_1_1_q_f_approximator_a0f3a71348c0348b950b834b8e8f4f4d0}{update\+\_\+constraints\+\_\+for\+\_\+xhatuhat}} (self, xhat, uhat, xplus\+\_\+constraint)
+\item 
+def \mbox{\hyperlink{classgddp_1_1qfa_1_1_q_f_approximator_aab82083cc8e6b64cc0bedc47532f865f}{approximate}} (self, strategy\+\_\+in=None, audit\+\_\+in=None, outputs\+\_\+in=None)
+\item 
+def \mbox{\hyperlink{classgddp_1_1qfa_1_1_q_f_approximator_aca8822d616ab1114cbf8175a3f764130}{solve\+\_\+for\+\_\+xhatuhat}} (self, xhat, uhat, print\+\_\+sol=False, extract\+\_\+constr=True, print\+\_\+errors=False, iter\+\_\+no=None, xplus\+\_\+constraint=None)
+\item 
+def \mbox{\hyperlink{classgddp_1_1qfa_1_1_q_f_approximator_aebd6f739abd857ff3f453f695a0176d3}{solve\+\_\+for\+\_\+xhat}} (self, xhat, print\+\_\+sol=False, extract\+\_\+constr=True, print\+\_\+errors=False, iter\+\_\+no=None, alt\+\_\+bound=False, xplus\+\_\+constraint=None)
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a741dfd0b9767bedf3db83f390682f146}\label{classgddp_1_1qfa_1_1_q_f_approximator_a741dfd0b9767bedf3db83f390682f146}} 
+def {\bfseries q\+\_\+policy} (self, xhat)
+\item 
+def \mbox{\hyperlink{classgddp_1_1qfa_1_1_q_f_approximator_a9a577ac6db94ba649cf8e9be227761cc}{add\+\_\+alpha\+\_\+constraint}} (self, constr\+\_\+in, was\+\_\+temp\+\_\+removed=False, temp\+\_\+add=False)
+\item 
+def \mbox{\hyperlink{classgddp_1_1qfa_1_1_q_f_approximator_a2f3076300b243bc8a38d3fb38c74b8d2}{eval\+\_\+qfa}} (self, x\+\_\+in, u\+\_\+in)
+\item 
+def \mbox{\hyperlink{classgddp_1_1qfa_1_1_q_f_approximator_ae727d0246dd3d97387b73e17ca19ee33}{plot\+\_\+qfa}} (self, iter\+\_\+no=None, save=False, output\+\_\+dir=None)
+\item 
+def \mbox{\hyperlink{classgddp_1_1qfa_1_1_q_f_approximator_ade147379e2e5a350b9545a07ac15d533}{plot\+\_\+zalg\+\_\+qbe}} (self, xalgualg\+\_\+q\+\_\+of\+\_\+xu, xalgualg\+\_\+tq\+\_\+of\+\_\+xu)
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a6d3c99d233cc1a906281eae4ccf91dbe}\label{classgddp_1_1qfa_1_1_q_f_approximator_a6d3c99d233cc1a906281eae4ccf91dbe}} 
+def {\bfseries save\+\_\+function\+\_\+approximation} (self)
+\item 
+def \mbox{\hyperlink{classgddp_1_1qfa_1_1_q_f_approximator_a9d399c0b2d3a45f5274805575945e183}{output\+\_\+convergence\+\_\+results}} (self, data\+\_\+in, nx, bell\+\_\+tol\+\_\+in, output\+\_\+dir)
+\item 
+def \mbox{\hyperlink{classgddp_1_1qfa_1_1_q_f_approximator_a955edba3bc147309cbc8d786e6cbc2db}{create\+\_\+vfa\+\_\+model}} (self)
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_afdc7f7d3f5e3635366f2fc40429dade9}\label{classgddp_1_1qfa_1_1_q_f_approximator_afdc7f7d3f5e3635366f2fc40429dade9}} 
+{\bfseries default\+\_\+strategy}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a8cb7d59049fa54f31f186043d109764c}\label{classgddp_1_1qfa_1_1_q_f_approximator_a8cb7d59049fa54f31f186043d109764c}} 
+{\bfseries default\+\_\+outputs}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_ac5c85152cebe72b195495e93a70d24e7}\label{classgddp_1_1qfa_1_1_q_f_approximator_ac5c85152cebe72b195495e93a70d24e7}} 
+{\bfseries n\+\_\+beta}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a1608157ff22be968b853517ba227b4a0}\label{classgddp_1_1qfa_1_1_q_f_approximator_a1608157ff22be968b853517ba227b4a0}} 
+{\bfseries mod\+\_\+alpha\+\_\+c}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a2addba7f81d630cc01ff5f7480158054}\label{classgddp_1_1qfa_1_1_q_f_approximator_a2addba7f81d630cc01ff5f7480158054}} 
+{\bfseries pmod\+\_\+c}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a352e777309a49a6a9aa8ff9ac05facbe}\label{classgddp_1_1qfa_1_1_q_f_approximator_a352e777309a49a6a9aa8ff9ac05facbe}} 
+{\bfseries pmod\+\_\+alpha\+\_\+c}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_ab2290068c5ca024b3f05253576eb925d}\label{classgddp_1_1qfa_1_1_q_f_approximator_ab2290068c5ca024b3f05253576eb925d}} 
+{\bfseries xalg\+\_\+list}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a5516d39cbf0d6919a0c60b0eed8b62fa}\label{classgddp_1_1qfa_1_1_q_f_approximator_a5516d39cbf0d6919a0c60b0eed8b62fa}} 
+{\bfseries ualg\+\_\+list}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a75dd0740a1422f7228945ac865b142cc}\label{classgddp_1_1qfa_1_1_q_f_approximator_a75dd0740a1422f7228945ac865b142cc}} 
+{\bfseries on\+\_\+policy}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a282457b75bafcb66fbe36287448397dd}\label{classgddp_1_1qfa_1_1_q_f_approximator_a282457b75bafcb66fbe36287448397dd}} 
+{\bfseries solver}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a2dd0f486ee05b823f41365e4ec2b1f2d}\label{classgddp_1_1qfa_1_1_q_f_approximator_a2dd0f486ee05b823f41365e4ec2b1f2d}} 
+{\bfseries mod}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a5f10bb1ea51626ac5701f1654428ba02}\label{classgddp_1_1qfa_1_1_q_f_approximator_a5f10bb1ea51626ac5701f1654428ba02}} 
+{\bfseries mod\+\_\+x}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a483c5c316ef06c6b86a506066ea30c8d}\label{classgddp_1_1qfa_1_1_q_f_approximator_a483c5c316ef06c6b86a506066ea30c8d}} 
+{\bfseries mod\+\_\+c}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a6ee87bd00209d816995dca53daa6f12d}\label{classgddp_1_1qfa_1_1_q_f_approximator_a6ee87bd00209d816995dca53daa6f12d}} 
+{\bfseries mod\+\_\+c\+\_\+c}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a0309209de249f87e60311724eb4b4c4b}\label{classgddp_1_1qfa_1_1_q_f_approximator_a0309209de249f87e60311724eb4b4c4b}} 
+{\bfseries pmod}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a745ebbc3c0645e2f11edbf188c6d01dd}\label{classgddp_1_1qfa_1_1_q_f_approximator_a745ebbc3c0645e2f11edbf188c6d01dd}} 
+{\bfseries pmod\+\_\+x}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a8e84e73d716c7f83fe292df7a3da77f6}\label{classgddp_1_1qfa_1_1_q_f_approximator_a8e84e73d716c7f83fe292df7a3da77f6}} 
+{\bfseries total\+\_\+solver\+\_\+time}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_aec6b1b657f28ad7cfc2b20d532ea8320}\label{classgddp_1_1qfa_1_1_q_f_approximator_aec6b1b657f28ad7cfc2b20d532ea8320}} 
+{\bfseries b\+\_\+gap\+\_\+eval\+\_\+time}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_ab5697c9f97e0334ebb7663ae011c4a38}\label{classgddp_1_1qfa_1_1_q_f_approximator_ab5697c9f97e0334ebb7663ae011c4a38}} 
+{\bfseries v\+\_\+integral\+\_\+eval\+\_\+time}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a090e50ab4f834dbfac7e7871cc38e775}\label{classgddp_1_1qfa_1_1_q_f_approximator_a090e50ab4f834dbfac7e7871cc38e775}} 
+{\bfseries lb\+\_\+computation\+\_\+time}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a64ea4c0d36c9ea162c299c68ab4f4a3c}\label{classgddp_1_1qfa_1_1_q_f_approximator_a64ea4c0d36c9ea162c299c68ab4f4a3c}} 
+{\bfseries u\+\_\+visited}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_adefb75ab26485fb1ca51e5a00c28b60a}\label{classgddp_1_1qfa_1_1_q_f_approximator_adefb75ab26485fb1ca51e5a00c28b60a}} 
+{\bfseries final\+\_\+j}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_ac1f818a6c31e5d3a3b24c19170f54a02}\label{classgddp_1_1qfa_1_1_q_f_approximator_ac1f818a6c31e5d3a3b24c19170f54a02}} 
+{\bfseries alpha\+\_\+c\+\_\+in\+\_\+model}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a479b25a1a537dc1b7f2da86ecbda786c}\label{classgddp_1_1qfa_1_1_q_f_approximator_a479b25a1a537dc1b7f2da86ecbda786c}} 
+{\bfseries n}
+\item 
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_adf06d03993b426d31414b93b6d65f0e4}\label{classgddp_1_1qfa_1_1_q_f_approximator_adf06d03993b426d31414b93b6d65f0e4}} 
+{\bfseries m}
+\end{DoxyCompactItemize}
+
+
+\subsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a93a03d1246461e93c47cb88b8991cae8}\label{classgddp_1_1qfa_1_1_q_f_approximator_a93a03d1246461e93c47cb88b8991cae8}} 
+\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}!\_\_init\_\_@{\_\_init\_\_}}
+\index{\_\_init\_\_@{\_\_init\_\_}!gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+\subsubsection{\texorpdfstring{\_\_init\_\_()}{\_\_init\_\_()}}
+{\footnotesize\ttfamily def gddp.\+qfa.\+Q\+F\+Approximator.\+\_\+\+\_\+init\+\_\+\+\_\+ (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{system,  }\item[{}]{solver = {\ttfamily \textquotesingle{}gurobi\textquotesingle{}} }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Initialize VFApproximator object.
+
+:param system: System object on which the value function approximator will act
+:param solver: Solver to use ('gurobi' or None)
+\end{DoxyVerb}
+ 
+
+Reimplemented from \mbox{\hyperlink{classgddp_1_1vfa_1_1_v_f_approximator_abe39aff2fd28268fc81a555b4d362a6b}{gddp.\+vfa.\+V\+F\+Approximator}}.
+
+
+
+\subsection{Member Function Documentation}
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a9a577ac6db94ba649cf8e9be227761cc}\label{classgddp_1_1qfa_1_1_q_f_approximator_a9a577ac6db94ba649cf8e9be227761cc}} 
+\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}!add\_alpha\_constraint@{add\_alpha\_constraint}}
+\index{add\_alpha\_constraint@{add\_alpha\_constraint}!gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+\subsubsection{\texorpdfstring{add\_alpha\_constraint()}{add\_alpha\_constraint()}}
+{\footnotesize\ttfamily def gddp.\+qfa.\+Q\+F\+Approximator.\+add\+\_\+alpha\+\_\+constraint (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{constr\+\_\+in,  }\item[{}]{was\+\_\+temp\+\_\+removed = {\ttfamily False},  }\item[{}]{temp\+\_\+add = {\ttfamily False} }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Add a value function lower-bounding constraint to the solver model (in case a solver is
+being used) and in any case, add it to the book-keeping list of all constraints currently in
+the model.
+
+:param constr_in: Constraint object to add to the model
+:param was_temp_removed: Boolean. If True, constr_in.in_model = True, but is not in model
+:param temp_add: Boolean. If True, add to gurobi model but don't set constr_in.in_model.
+:return: nothing
+\end{DoxyVerb}
+ 
+
+Reimplemented from \mbox{\hyperlink{classgddp_1_1vfa_1_1_v_f_approximator_a5f5aa5208b059f55b4db350c4d5e1cc5}{gddp.\+vfa.\+V\+F\+Approximator}}.
+
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_aab82083cc8e6b64cc0bedc47532f865f}\label{classgddp_1_1qfa_1_1_q_f_approximator_aab82083cc8e6b64cc0bedc47532f865f}} 
+\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}!approximate@{approximate}}
+\index{approximate@{approximate}!gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+\subsubsection{\texorpdfstring{approximate()}{approximate()}}
+{\footnotesize\ttfamily def gddp.\+qfa.\+Q\+F\+Approximator.\+approximate (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{strategy\+\_\+in = {\ttfamily None},  }\item[{}]{audit\+\_\+in = {\ttfamily None},  }\item[{}]{outputs\+\_\+in = {\ttfamily None} }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Create an iterative approximation of the value function for the system self.s
+
+:param strategy_in: Dictionary of parameters describing the solution strategy
+:param audit_in: Dict of parameters describing how progress should be tracked during sol'n
+:param outputs_in: Dict of parameters determining outputs produced
+:return: Convergence data structure
+\end{DoxyVerb}
+ 
+
+Reimplemented from \mbox{\hyperlink{classgddp_1_1vfa_1_1_v_f_approximator_a8eab71f7f7d2f248904874fc364fedc5}{gddp.\+vfa.\+V\+F\+Approximator}}.
+
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a955edba3bc147309cbc8d786e6cbc2db}\label{classgddp_1_1qfa_1_1_q_f_approximator_a955edba3bc147309cbc8d786e6cbc2db}} 
+\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}!create\_vfa\_model@{create\_vfa\_model}}
+\index{create\_vfa\_model@{create\_vfa\_model}!gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+\subsubsection{\texorpdfstring{create\_vfa\_model()}{create\_vfa\_model()}}
+{\footnotesize\ttfamily def gddp.\+qfa.\+Q\+F\+Approximator.\+create\+\_\+vfa\+\_\+model (\begin{DoxyParamCaption}\item[{}]{self }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Create an initialized value function approximation model, setting up optimization
+variables and solver settings. Also create zero lower bounding function on optimal value
+function.
+
+:return: nothing
+\end{DoxyVerb}
+ 
+
+Reimplemented from \mbox{\hyperlink{classgddp_1_1vfa_1_1_v_f_approximator_a612636b5857332f4798eab6dade1f729}{gddp.\+vfa.\+V\+F\+Approximator}}.
+
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a2f3076300b243bc8a38d3fb38c74b8d2}\label{classgddp_1_1qfa_1_1_q_f_approximator_a2f3076300b243bc8a38d3fb38c74b8d2}} 
+\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}!eval\_qfa@{eval\_qfa}}
+\index{eval\_qfa@{eval\_qfa}!gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+\subsubsection{\texorpdfstring{eval\_qfa()}{eval\_qfa()}}
+{\footnotesize\ttfamily def gddp.\+qfa.\+Q\+F\+Approximator.\+eval\+\_\+qfa (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{x\+\_\+in,  }\item[{}]{u\+\_\+in }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Evaluates lower bound (max of all LB functions) at x_in by evaluating all LBs\end{DoxyVerb}
+ \mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a9d399c0b2d3a45f5274805575945e183}\label{classgddp_1_1qfa_1_1_q_f_approximator_a9d399c0b2d3a45f5274805575945e183}} 
+\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}!output\_convergence\_results@{output\_convergence\_results}}
+\index{output\_convergence\_results@{output\_convergence\_results}!gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+\subsubsection{\texorpdfstring{output\_convergence\_results()}{output\_convergence\_results()}}
+{\footnotesize\ttfamily def gddp.\+qfa.\+Q\+F\+Approximator.\+output\+\_\+convergence\+\_\+results (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{data\+\_\+in,  }\item[{}]{nx,  }\item[{}]{bell\+\_\+tol\+\_\+in,  }\item[{}]{output\+\_\+dir }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Save CSV files and graphs in PDF form regarding convergence of the algorithm
+
+:param data_in: Data structure containing quantities measured by iteration
+:param nx: Number of elements in XAlg
+:param output_dir: Output directory to save results to
+:return: nothing
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_ae727d0246dd3d97387b73e17ca19ee33}\label{classgddp_1_1qfa_1_1_q_f_approximator_ae727d0246dd3d97387b73e17ca19ee33}} 
+\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}!plot\_qfa@{plot\_qfa}}
+\index{plot\_qfa@{plot\_qfa}!gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+\subsubsection{\texorpdfstring{plot\_qfa()}{plot\_qfa()}}
+{\footnotesize\ttfamily def gddp.\+qfa.\+Q\+F\+Approximator.\+plot\+\_\+qfa (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{iter\+\_\+no = {\ttfamily None},  }\item[{}]{save = {\ttfamily False},  }\item[{}]{output\+\_\+dir = {\ttfamily None} }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Plot value function approximation in 1 or 2 dimensions. Plot bounds and resolution are
+currently hard-coded inside the function.
+
+:param iter_no: Integer, iteration number
+:param save: Boolean, save value function plot. If false, show on screen instead
+:param output_dir: Output directory for plots
+:return: nothing
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_ade147379e2e5a350b9545a07ac15d533}\label{classgddp_1_1qfa_1_1_q_f_approximator_ade147379e2e5a350b9545a07ac15d533}} 
+\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}!plot\_zalg\_qbe@{plot\_zalg\_qbe}}
+\index{plot\_zalg\_qbe@{plot\_zalg\_qbe}!gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+\subsubsection{\texorpdfstring{plot\_zalg\_qbe()}{plot\_zalg\_qbe()}}
+{\footnotesize\ttfamily def gddp.\+qfa.\+Q\+F\+Approximator.\+plot\+\_\+zalg\+\_\+qbe (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{xalgualg\+\_\+q\+\_\+of\+\_\+xu,  }\item[{}]{xalgualg\+\_\+tq\+\_\+of\+\_\+xu }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Plots the Q-Bellman error at all elements of the set XAlg (i.e. the sample points used in
+the algorithm)
+
+:param xalgualg_q_of_xu: List of Q(x, u) with length equal to no. of elements in XAlg
+:param xalgualg_tq_of_xu: List of TQ(x, u) with length equal to no. of elements in XAlg
+:return: nothing
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_aebd6f739abd857ff3f453f695a0176d3}\label{classgddp_1_1qfa_1_1_q_f_approximator_aebd6f739abd857ff3f453f695a0176d3}} 
+\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}!solve\_for\_xhat@{solve\_for\_xhat}}
+\index{solve\_for\_xhat@{solve\_for\_xhat}!gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+\subsubsection{\texorpdfstring{solve\_for\_xhat()}{solve\_for\_xhat()}}
+{\footnotesize\ttfamily def gddp.\+qfa.\+Q\+F\+Approximator.\+solve\+\_\+for\+\_\+xhat (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{xhat,  }\item[{}]{print\+\_\+sol = {\ttfamily False},  }\item[{}]{extract\+\_\+constr = {\ttfamily True},  }\item[{}]{print\+\_\+errors = {\ttfamily False},  }\item[{}]{iter\+\_\+no = {\ttfamily None},  }\item[{}]{alt\+\_\+bound = {\ttfamily False},  }\item[{}]{xplus\+\_\+constraint = {\ttfamily None} }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Solve one-stage optimization problem, optionally returning a lower-bounding function
+on the optimal value function.
+
+:param xhat: Fixed state parameter to solve the one stage problem for
+:param print_sol: Boolean, print solution details
+:param extract_constr: Boolean, extract constraint (returns different values if so)
+:param print_errors: Boolean, print error information
+:param iter_no: Integer, iteration number of the GDDP algorithm
+:param alt_bound: Boolean, return alternative lower-bounding function using other dual
+:param xplus_constraint: e-element array or None, Force successor state to this value
+:return: If extract_constr: new lower bound, (u*, x+*, beta*, alpha*)
+ Otherwise: u*, optimal cost, stage cost
+\end{DoxyVerb}
+ 
+
+Reimplemented from \mbox{\hyperlink{classgddp_1_1vfa_1_1_v_f_approximator_af7e7b99c9816b5c809ea1a4b90c67df5}{gddp.\+vfa.\+V\+F\+Approximator}}.
+
+\mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_aca8822d616ab1114cbf8175a3f764130}\label{classgddp_1_1qfa_1_1_q_f_approximator_aca8822d616ab1114cbf8175a3f764130}} 
+\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}!solve\_for\_xhatuhat@{solve\_for\_xhatuhat}}
+\index{solve\_for\_xhatuhat@{solve\_for\_xhatuhat}!gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+\subsubsection{\texorpdfstring{solve\_for\_xhatuhat()}{solve\_for\_xhatuhat()}}
+{\footnotesize\ttfamily def gddp.\+qfa.\+Q\+F\+Approximator.\+solve\+\_\+for\+\_\+xhatuhat (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{xhat,  }\item[{}]{uhat,  }\item[{}]{print\+\_\+sol = {\ttfamily False},  }\item[{}]{extract\+\_\+constr = {\ttfamily True},  }\item[{}]{print\+\_\+errors = {\ttfamily False},  }\item[{}]{iter\+\_\+no = {\ttfamily None},  }\item[{}]{xplus\+\_\+constraint = {\ttfamily None} }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Solve one-stage optimization problem, optionally returning a lower-bounding function
+on the optimal value function.
+
+:param xhat: Fixed state parameter to solve the one stage problem for
+:param uhat: Fixed input parameter to solve the one stage problem for
+:param print_sol: Boolean, print solution details
+:param extract_constr: Boolean, extract constraint (returns different values if so)
+:param print_errors: Boolean, print error information
+:param iter_no: Integer, iteration number of the GDDP algorithm
+:param xplus_constraint: e-element array or None, Force successor state to this value
+:return: If extract_constr: new lower bound, (u*, x+*, beta*, alpha*)
+ Otherwise: u*, optimal cost, stage cost
+\end{DoxyVerb}
+ \mbox{\Hypertarget{classgddp_1_1qfa_1_1_q_f_approximator_a0f3a71348c0348b950b834b8e8f4f4d0}\label{classgddp_1_1qfa_1_1_q_f_approximator_a0f3a71348c0348b950b834b8e8f4f4d0}} 
+\index{gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}!update\_constraints\_for\_xhatuhat@{update\_constraints\_for\_xhatuhat}}
+\index{update\_constraints\_for\_xhatuhat@{update\_constraints\_for\_xhatuhat}!gddp.qfa.QFApproximator@{gddp.qfa.QFApproximator}}
+\subsubsection{\texorpdfstring{update\_constraints\_for\_xhatuhat()}{update\_constraints\_for\_xhatuhat()}}
+{\footnotesize\ttfamily def gddp.\+qfa.\+Q\+F\+Approximator.\+update\+\_\+constraints\+\_\+for\+\_\+xhatuhat (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{xhat,  }\item[{}]{uhat,  }\item[{}]{xplus\+\_\+constraint }\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Update constraint of optimization model to account for the current state, which enters
+into the one-stage optimization as a fixed parameter.
+
+:param xhat: Fixed state parameter for the problem
+:param uhat: Fixed input parameter for the problem
+:param xplus_constraint: Add a constraint that the successor state should take a particular
+value
+:return: nothing
+\end{DoxyVerb}
+ 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+gddp/qfa.\+py\end{DoxyCompactItemize}
