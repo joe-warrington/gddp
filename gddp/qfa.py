@@ -4,7 +4,7 @@ import gurobipy as gu
 import copy
 import pandas as pd
 from matplotlib import pyplot as plt
-from scipy.io import savemat, loadmat
+from scipy.io import savemat
 from scipy.stats import laplace
 import os
 from gddp import QConstraint
@@ -25,7 +25,7 @@ default_qf_approx_strategy = {'max_iter': 100,
 
 default_qf_approx_outputs = {'cl_plot_j': False, 'cl_plot_freq': 20, 'cl_plot_final': False,
                              'cl_plot_n_steps': 50,
-                             'qfa_plot_j': False, 'qfa_plot_freq': 1, 'qfa_plot_ub': False,
+                             'qfa_plot_j': False, 'qfa_plot_freq': 1,
                              'qfa_plot_final': True,
                              'policy_plot_j': False, 'policy_plot_freq': 5,
                              'policy_plot_final': True,
@@ -38,6 +38,7 @@ default_n1m1_vmin, default_n1m1_vmax = None, None
 
 # Default uniform distribution properties, per dimension
 x_unif_lower_default, x_unif_upper_default = [-3.], [3.]
+u_unif_lower_default, u_unif_upper_default = [-1.], [1.]
 
 
 class QFApproximator(VFApproximator):
@@ -48,13 +49,22 @@ class QFApproximator(VFApproximator):
         self.default_strategy = default_qf_approx_strategy
         self.default_outputs = default_qf_approx_outputs
 
-        self.n_beta = 1
+        assert len(self.s.phi_i_x_quad) == 1
+        assert len(self.s.phi_i_x_lin) == 1
+        assert len(self.s.ri) == 1
+        assert len(self.s.Ri) == 1
+        assert len(self.s.ti) == 1
+        assert len(self.s.li) == 1
+
+        # Placeholders for one-stage problem model
         self.mod_x, self.mod_c, self.mod_c_c, self.mod_alpha_c = None, None, None, None
-        self.pmod, self.pmod_x, self.pmod_c = None, None, None  # Placeholder for policy opt. model
+        # Placeholders for policy opt. model
+        self.pmod, self.pmod_x, self.pmod_c = None, None, None
         self.pmod_c_c, self.pmod_alpha_c = None, None
         self.xalg_list = None
         self.ualg_list = None
         self.on_policy = None
+        self.u_visited = None
         self.create_qf_policy_model()
 
     def create_qfa_model(self):
@@ -239,7 +249,7 @@ class QFApproximator(VFApproximator):
 
     def approximate(self, strategy_in=None, audit_in=None, outputs_in=None):
         """
-        Create an iterative approximation of the value function for the system self.s
+        Create an iterative approximation of the Q function for the system self.s
 
         :param strategy_in: Dictionary of parameters describing the solution strategy
         :param audit_in: Dict of parameters describing how progress should be tracked during sol'n
@@ -272,13 +282,13 @@ class QFApproximator(VFApproximator):
         consolidation_freq = strategy['consolidation_freq']
         q_function_limit = strategy['q_function_limit']
 
-        eval_ub, eval_ub_freq = audit['eval_ub'], audit['eval_ub_freq']
-        eval_ub_final = audit['eval_ub_final']
-        eval_bellman, eval_bellman_freq = audit['eval_bellman'], audit['eval_bellman_freq']
-        eval_integral, eval_integral_freq = audit['eval_integral'], audit['eval_integral_freq']
         eval_convergence = audit['eval_convergence']
         eval_convergence_freq = audit['eval_convergence_freq']
         n_ind_x_points = audit['n_independent_x']
+        eval_ub, eval_ub_freq = audit['eval_ub'], audit['eval_ub_freq']
+        eval_ub_final = audit['eval_ub_final']
+        eval_ind_bellman, eval_ind_bellman_freq = audit['eval_ind_bellman'], audit['eval_ind_bellman_freq']
+        eval_ind_integral, eval_ind_integral_freq = audit['eval_ind_integral'], audit['eval_ind_integral_freq']        
 
         cl_plot_j, cl_plot_final = outputs['cl_plot_j'], outputs['cl_plot_final']
         cl_plot_freq, cl_plot_n_steps = outputs['cl_plot_freq'], outputs['cl_plot_n_steps']
@@ -290,7 +300,7 @@ class QFApproximator(VFApproximator):
 
         self.on_policy = on_policy
 
-        # Create M samples for VF fitting
+        # Create M samples for QF fitting
         np.random.seed(rand_seed)
         distr = 'uniform'
         x_unif_lower = [x_unif_lower_default] * self.n
@@ -312,6 +322,9 @@ class QFApproximator(VFApproximator):
                              for k in range(n_z_points / 2)] + \
                             [np.array([laplace_rv2[m].rvs() for m in range(self.n)])
                              for k in range(n_z_points / 2)]
+            else:
+                print "Can only use 'focus_on_origin' with Laplace or Normal distributions of X_alg"
+                raise SystemExit()
         else:
             if distr == 'normal':
                 xalg_list = [self.s.state_mean + np.dot(np.sqrt(self.s.state_var),
@@ -331,8 +344,12 @@ class QFApproximator(VFApproximator):
                                                                size=(n_z_points,)))
                 xalg_list = [np.array([xalg_per_dim_list[dim][i] for dim in range(self.n)])
                              for i in range(n_z_points)]
+            else:
+                print "Unrecognised distribtuion '" + distr + "' when generating X_alg! Exiting."
+                raise SystemExit()
+
         # Random u inputs associated with each x (these are not used if "on policy" inputs active)
-        u_unif_lower, u_unif_upper = [-1.] * self.m, [1.] * self.m
+        u_unif_lower, u_unif_upper = u_unif_lower_default * self.m, u_unif_upper_default * self.m
         ualg_per_dim_list = []
         for dim in range(self.m):
             ualg_per_dim_list.append(np.random.uniform(low=u_unif_lower[dim],
@@ -340,6 +357,7 @@ class QFApproximator(VFApproximator):
                                                        size=(n_z_points,)))
         ualg_list = [np.array([ualg_per_dim_list[dim][i] for dim in range(self.m)])
                      for i in range(n_z_points)]
+
         # self.create_audit_samples(n_ind_x_points, seed=rand_seed)  # Create ind't audit samples
 
         gamma = self.s.gamma
@@ -356,7 +374,7 @@ class QFApproximator(VFApproximator):
         xalgualg_integral_results = []
         xalgualg_bellman_results = []
         xalgualg_cl_ub_results = []
-        vf_changed = True
+        qf_changed = True  # Flag to indicate Q function changed wrt last iteration
 
         # Results for independently-generated states
         ind_integral_results = []
@@ -376,12 +394,11 @@ class QFApproximator(VFApproximator):
             if consolidate_constraints and divmod(j, consolidation_freq)[1] == 0:
                 self.consolidate_bounds()
             # Eval Bellman error convergence
-            # j_earliest_likely = 4000 if n_z_points <= 200 else 10000
-            j_earliest_likely = 0  # Manipulte to hack iteration #s where convergence is checked
+            j_earliest_likely = 0  # Manipulate to hack iteration #s where convergence is checked
             if eval_convergence \
                     and (divmod(j, eval_convergence_freq)[1] == 0
                          and (j == 0 or j >= j_earliest_likely)) \
-                    and vf_changed:
+                    and qf_changed:
                 print "  Measuring QF integral and BE for M=%d elements of ZAlg... " % n_z_points,
                 if j > 0 and sol_strategy == 'biggest_gap':
                     old_largest_bellman_error = xalgualg_tq_of_xu[k] - xalgualg_q_of_xu[k]
@@ -395,8 +412,7 @@ class QFApproximator(VFApproximator):
                         u_to_test = ualg_list[m]
                     xalgualg_q_of_xu.append(self.eval_qfa(x, u_to_test))
                     xalgualg_tq_of_xu.append(self.solve_for_xhatuhat(x, u_to_test,
-                                                                     extract_constr=False,
-                                                                     iter_no=j)[2])
+                                                                     extract_constr=False)[2])
                     if xalgualg_tq_of_xu[-1] < xalgualg_q_of_xu[-1] - 1e-4:
                         print "  Negative QBE found at element %d of ZAlg: %.5f" % \
                               (len(xalgualg_q_of_xu), xalgualg_tq_of_xu[-1] - xalgualg_q_of_xu[-1])
@@ -412,7 +428,8 @@ class QFApproximator(VFApproximator):
                                                         / xalgualg_q_of_xu)))
                 print "mean = %.6f, max = %.6f" % (np.mean(xalgualg_tq_of_xu - xalgualg_q_of_xu),
                                                    np.max(xalgualg_tq_of_xu - xalgualg_q_of_xu))
-            # Evaluate value function upper bound
+
+            # Evaluate Q function upper bound (NOTE: not changed from V-function implementation!)
             # x_data, x_upper = None, None
             # if eval_ub and divmod(j, eval_ub_freq)[1] == 0:
             #     print "  Evaluating closed-loop UB for M=%d elements of XAlg..." % n_z_points
@@ -435,7 +452,7 @@ class QFApproximator(VFApproximator):
             #     else:
             #         xalgualg_cl_ub_results.append((copy.copy(j), np.inf, np.inf))
             # Measure integral of value function approximation over x samples
-            # if eval_integral and divmod(j, eval_integral_freq)[1] == 0:
+            # if eval_ind_integral and divmod(j, eval_ind_integral_freq)[1] == 0:
             #     print "  Measuring VF integral for %d independent samples..." % n_ind_x_points
             #     ind_v_of_x = np.array([self.eval_qfa(x) for x in self.v_integral_x_list])
             #     t1 = time.time()
@@ -443,12 +460,12 @@ class QFApproximator(VFApproximator):
             #     t2 = time.time()
             #     self.v_integral_eval_time += t2 - t1
             # Measure Bellman gap TV(x) - V(x) over x samples
-            # if eval_bellman and divmod(j, eval_bellman_freq)[1] == 0:
+            # if eval_ind_bellman and divmod(j, eval_ind_bellman_freq)[1] == 0:
             #     print "  Measuring Bellman error for %d independent samples..." % n_ind_x_points
             #     avg_gap, avg_rel_gap, max_gap, max_rel_gap = self.measure_ind_bellman_gap()
             #     ind_bellman_results.append((copy.copy(j), avg_gap, avg_rel_gap, max_gap, max_rel_gap))
             #     print "  Measuring closed-loop UB for %d independent samples..." % n_ind_x_points
-            #     if not (eval_integral and divmod(j, eval_integral_freq)[1] == 0):
+            #     if not (eval_ind_integral and divmod(j, eval_ind_integral_freq)[1] == 0):
             #         ind_v_of_x = np.array([self.eval_vfa(x) for x in self.v_integral_x_list])
             #     ind_ubs, ind_fi = self.measure_many_cl_upper_bounds(self.v_integral_x_list,
             #                                                         n_steps=cl_plot_n_steps,
@@ -470,18 +487,19 @@ class QFApproximator(VFApproximator):
             # if remove_red and divmod(j, removal_freq)[1] == 0:
             #     print "  Removing redundant lower-bounding constraints..."
             #     self.remove_redundant_lbs(n_samples=removal_res, threshold=0.00, sigma_in=np.pi)
+
             # Plot closed-loop trajectories
+
             if cl_plot_j and divmod(j, cl_plot_freq)[1] == 0 and not suppress_outputs:
                 print "  Plotting a closed-loop trajectory..."
-                x0 = np.array([1., 0., -0.17453, 0.])
-                # x0 = np.ones((self.n,), dtype=float)
+                x0 = np.ones((self.n,), dtype=float)
                 self.s.simulate(x0, self, n_steps=cl_plot_n_steps, iter_no=j, save_plot=True)
                 # Save timing info
                 pd.DataFrame([('LB computation time', self.lb_computation_time)]).to_csv(
                     'output/' + self.s.name + '/comp_time_%d.csv' % j,
-                    header=['Category', 'Time'],
-                    index=None, float_format='%.4f')
-            # Plot VF approximation
+                    header=['Category', 'Time'], index=None, float_format='%.4f')
+
+            # Plot QF approximation
             if qfa_plot_j and (divmod(j, qfa_plot_freq)[1] == 0 or j < 10) and not suppress_outputs:
                 print "  Plotting value function approximation..."
                 self.plot_qfa(iter_no=j, save=True, output_dir='output/' + self.s.name)
@@ -514,34 +532,14 @@ class QFApproximator(VFApproximator):
                         _, opt_cost, _ = self.solve_for_xhat(x, iter_no=j, extract_constr=False)
                         xalgualg_tq_of_xu[i] = opt_cost
 
-                k = np.argsort(xalgualg_tq_of_xu - xalgualg_q_of_xu)[-1]  # Pick largest Bellman error
+                k = np.argsort(xalgualg_tq_of_xu - xalgualg_q_of_xu)[-1]  # Pick largest B. error
                 print "  Largest BE is at sample %d/%d: %.5f" % (k+1, n_z_points,
-                                                                 xalgualg_tq_of_xu[k] - xalgualg_q_of_xu[k])
+                                                                 xalgualg_tq_of_xu[k] -
+                                                                 xalgualg_q_of_xu[k])
                 x_picked = xalg_list[k]
-                if k == old_k and old_largest_bellman_error == xalgualg_tq_of_xu[k] - xalgualg_q_of_xu[k]:
+                if k == old_k and old_largest_bellman_error == xalgualg_tq_of_xu[k] - \
+                        xalgualg_q_of_xu[k]:
                     print "Index and value of largest Bellman error didn't change!"
-                    # raise SystemExit()
-            elif sol_strategy == 'parallel':
-                print "parallel not implemented!"
-                raise SystemExit()
-                # Generate a new LB constraint for each x sample
-                constrs_to_add = []
-                for i, x in enumerate(xalg_list):
-                    new_constr, sol = self.solve_for_xhat(x, iter_no=j, extract_constr=True)
-                    u, xplus, beta, alpha = sol
-                    xalgualg_q_of_xu[i] = self.eval_vfa(x)
-                    xalgualg_tq_of_xu[i] = np.sum(beta) + gamma * alpha
-                    summed_ub_1s[j] += np.sum(beta) + gamma * alpha
-                    if xalgualg_tq_of_xu[i] - xalgualg_q_of_xu[i] > new_constr_tol:
-                        constrs_to_add.append(copy.deepcopy(new_constr))
-                    lb_ub_results.append((j, xalgualg_integral_results[j], summed_ub_1s[j]))
-
-                # Modify the VF approximation
-                for c in constrs_to_add:
-                    if not c.dodgy:
-                        self.add_alpha_constraint(c)
-                    else:
-                        print "  New LB constraint not reliable. Not adding to model."
             else:
                 print "Unrecognized solution strategy:", sol_strategy
                 raise SystemExit()
@@ -550,8 +548,7 @@ class QFApproximator(VFApproximator):
             print "  x_%d = [" % (k + 1) + ", ".join(["%.3f" % x_el for x_el in x_picked]) + "]" + \
                   "  u_%d = [" % (k + 1) + ", ".join(["%.3f" % u_el for u_el in u_picked]) + "]"
             t_start_lb = time.time()
-            new_constr, sol = self.solve_for_xhatuhat(x_picked, u_picked,
-                                                      iter_no=j, extract_constr=True)
+            new_constr, sol = self.solve_for_xhatuhat(x_picked, u_picked, extract_constr=True)
             t_end_lb = time.time()
             self.lb_computation_time += t_end_lb - t_start_lb
             self.x_visited.append(x_picked)
@@ -562,8 +559,8 @@ class QFApproximator(VFApproximator):
             qfa_xu_picked = self.eval_qfa(x_picked, u_picked)
             gap_found = primal_optimal_value - qfa_xu_picked
 
-            # Modify the VF approximation
-            vf_changed = False  # Only set back to true if a new LB is added
+            # Modify the QF approximation
+            qf_changed = False  # Only set back to true if a new LB is added
             if gap_found >= 1e-5:  # Bellman error is sufficiently large to add a new LB
                 if new_constr.dodgy:
                     print "  New LB constr. at sample %d unreliable. Not adding to model." % k
@@ -571,7 +568,7 @@ class QFApproximator(VFApproximator):
                     print "  New LB constr. doesn't increase VFA due to duality gap. Not added."
                 else:
                     self.add_alpha_constraint(new_constr)
-                    vf_changed = True
+                    qf_changed = True
                     # new_constr.plot_function(output_dir='output/'+self.s.name, iter_no=j)
                     print "  New LB constraint added to model. TQ(x,u) - Q(x,u) = %.7f" % gap_found
             elif gap_found <= -1e-3:  # Bellman error is sufficiently negative to be suspicious
@@ -585,7 +582,7 @@ class QFApproximator(VFApproximator):
                     if qfa_xu_picked - c.eval_at(x_picked, u_picked) == 0:
                         print "Removing constraint from the model."
                         self.remove_alpha_constraint(c)
-                        vf_changed = True
+                        qf_changed = True
             else:
                 print "  No new constraint added for sample %d: QBE of %.7f reached." % \
                       (k + 1, gap_found)
@@ -625,11 +622,11 @@ class QFApproximator(VFApproximator):
         print "  Bellman error for M=%d elements of ZAlg..." % n_z_points
         if on_policy:
             xalgualg_tq_of_xu = np.array(
-                [self.solve_for_xhatuhat(x, self.q_policy(x), extract_constr=False, iter_no=j)[2]
+                [self.solve_for_xhatuhat(x, self.q_policy(x), extract_constr=False)[2]
                  for x in xalg_list])
         else:
             xalgualg_tq_of_xu = np.array(
-                [self.solve_for_xhatuhat(x, ualg_list[m], extract_constr=False, iter_no=j)[2]
+                [self.solve_for_xhatuhat(x, ualg_list[m], extract_constr=False)[2]
                  for m, x in enumerate(xalg_list)])
         xalg_negative_bellman_list = []
         xalg_negative_bellman_errors = False
@@ -724,7 +721,7 @@ class QFApproximator(VFApproximator):
         return convergence_data
 
     def solve_for_xhatuhat(self, xhat, uhat, print_sol=False, extract_constr=True,
-                           print_errors=False, iter_no=None, xplus_constraint=None):
+                           print_errors=False, xplus_constraint=None):
         """ Solve one-stage optimization problem, optionally returning a lower-bounding function
         on the optimal value function.
 
@@ -733,7 +730,6 @@ class QFApproximator(VFApproximator):
         :param print_sol: Boolean, print solution details
         :param extract_constr: Boolean, extract constraint (returns different values if so)
         :param print_errors: Boolean, print error information
-        :param iter_no: Integer, iteration number of the GDDP algorithm
         :param xplus_constraint: e-element array or None, Force successor state to this value
         :return: If extract_constr: new lower bound, (u*, x+*, beta*, alpha*)
                  Otherwise: u*, optimal cost, stage cost
@@ -745,27 +741,9 @@ class QFApproximator(VFApproximator):
         if self.solver == 'gurobi':
             ts1 = time.time()
 
-            # if extract_constr:  # Change to cautious settings for extracting accurate multipliers
-            #     self.mod.params.qcpdual = 1
-            #     self.mod.params.dualreductions = 0
-            #     self.mod.params.optimalitytol = 1e-8
-            #     self.mod.params.feasibilitytol = 1e-8
-            #     self.mod.params.barconvtol = 1e-8
-            #     self.mod.params.barqcpconvtol = 1e-8
-            #     self.mod.params.numericfocus = 3
-
             self.mod.optimize()
             self.total_solver_time += time.time() - ts1
             self.one_stage_problems_solved += 1
-
-            # if extract_constr:  # Change settings back to less cautious ones
-            #     self.mod.params.qcpdual = 0
-            #     self.mod.params.dualreductions = 1
-            #     self.mod.params.optimalitytol = 1e-6
-            #     self.mod.params.feasibilitytol = 1e-6
-            #     self.mod.params.barconvtol = 1e-6
-            #     self.mod.params.barqcpconvtol = 1e-6
-            #     self.mod.params.numericfocus = 0
 
             if self.mod.status in [2, 13]:
                 if self.mod.status == 13:
@@ -775,11 +753,7 @@ class QFApproximator(VFApproximator):
                 xplus = np.array(sol_vec[:self.n])
                 uplus = np.array(sol_vec[self.n:self.n+self.m])
                 stage_cost = opt_cost - self.s.gamma * self.eval_qfa(xplus, uplus)
-                # print "  stage_cost:", stage_cost
-                # print "  self.s.quad_stage_cost(xhat, uhat):", self.s.quad_stage_cost(xhat, uhat)
                 assert np.abs(stage_cost - self.s.quad_stage_cost(xhat, uhat)) < 1e-4
-                # print "  opt_cost:", opt_cost
-                # print "  alpha:", sol_vec[-1]
                 # Can just return the optimal input and cost if we are only interested in that
                 if not extract_constr:
                     return sol_vec[:self.n], sol_vec[self.n:self.n + self.m], opt_cost, stage_cost
@@ -816,26 +790,13 @@ class QFApproximator(VFApproximator):
                             lambda_a.append(c.Pi)
                         except gu.GurobiError:
                             print c.getAttr('ConstrName')
-                        except AttributeError:  # Must be a quadratic constraint
+                        except AttributeError:
+                            # If the constraint doesn't have the attribute Pi, it could be a Gurobi
+                            # quadratic constraint, which has a corresponding attribute QCPi.
                             try:
                                 lambda_a.append(c.QCPi)
                             except gu.GurobiError:
                                 print c.getAttr('QCName')
-
-                    # for i in range(len(self.alpha_c_list)):
-                    #     if self.mod.getConstrByName('alpha_%d' % i) is not None:
-                    #         lambda_a.append(self.mod.getConstrByName('alpha_%d' % i).Pi)
-                    #     elif len([c for c in self.mod.getQConstrs()
-                    #               if c.QCName == 'alpha_%d' % i]) == 1:
-                    #         try:
-                    #             lambda_a.append([c for c in self.mod.getQConstrs()
-                    #                              if c.QCName == 'alpha_%d' % i][0].QCPi)
-                    #         except Exception as e:
-                    #             lambda_a.append(0.)
-                    #             # dodgy_bound = True
-                    #             # if print_errors:
-                    #             print "Can't extract multiplier for constraint 'alpha_%d'!" % i
-                    #             print e
                     lambda_a = np.array(lambda_a)
 
             else:
@@ -857,26 +818,14 @@ class QFApproximator(VFApproximator):
         if check_lambda_a:
             if np.abs(np.sum(lambda_a) - self.s.gamma) >= 1e-3:
                 print "  Warning: Incorrect lambda_a sum: %.5f. To fix." % np.sum(lambda_a)
-            # if np.abs(np.sum(lambda_a) - self.s.gamma) >= 0.01:
-            #     dodgy_bound = True  # Commenting this out because duals fixed below
             assert np.all([a > -1e-4 for a in lambda_a]), \
                 "Not all lambda_a multipliers positive! " + repr(lambda_a)
 
         f_x_const, f_x_lin = self.s.f_x_x(None)
         f_u_lin = self.s.f_u_x(None)
 
-        # (lambda_a, lambda_b, lambda_c, pi) = self.fix_duals((np.array(lambda_a),
-        #                                                      np.array(lambda_b),
-        #                                                      np.array(lambda_c),
-        #                                                      np.array(pi)))
-
-        # Including stage cost:
-        # bound_out_const = opt_cost - stage_cost - np.dot(pi, xplus)
-        # bound_out_x_lin = self.s.phi_i_x_lin[0] + np.dot(pi, f_x_lin)
-        # bound_out_u_lin = self.s.ri[0] + np.dot(pi, f_u_lin)
-        # bound_out_x_quad, bound_out_u_quad = self.s.phi_i_x_quad[0], self.s.Ri[0]
-
-        # Excluding stage cost:
+        # Excluding stage cost (because all bounds q_i(.,.) have the stage cost in, this gets
+        # added later when the Gurobi model is built):
         xhat_uhat_stage_cost = self.s.quad_stage_cost(xhat, uhat)
         bound_out_const = opt_cost - xhat_uhat_stage_cost - np.dot(pi, xplus)
         bound_out_x_lin = np.dot(pi, f_x_lin)
@@ -891,9 +840,11 @@ class QFApproximator(VFApproximator):
         if print_sol:
             print "s", bound_out_const, "p", bound_out_x_lin, "P", bound_out_x_quad
 
-        new_bound_value_at_eq = new_bound.eval_at(np.array([0.] * self.n), np.array([0.] * self.m))
-        if new_bound_value_at_eq > 1e-3:
-            print "  New bound takes value %.3f at origin! Not adding to model." % new_bound_value_at_eq
+        # At equilibrium (assumed to be x=0, u=0), value function should be 0. The following lines
+        # check whether the the lower-bounding function takes a value > 0 there.
+        bound_value_at_eq = new_bound.eval_at(np.array([0.] * self.n), np.array([0.] * self.m))
+        if bound_value_at_eq > 1e-3:
+            print "  New bound takes value %.3f at origin! Not adding to model." % bound_value_at_eq
             new_bound.dodgy = True
 
         if dodgy_bound:
@@ -1126,15 +1077,16 @@ class QFApproximator(VFApproximator):
         # Saves the lower-bounding functions that describe the value function approximation as a
         # .mat file. The constant, linear, and quadratic parts are stored in separate lists.
         # The functions take the form q_i(x,u) = c.const + (c.lin)'x + 0.5 * x'(c.hessian)x.
+        # As the functions are stored without the stage cost, this has to be added back here.
         const_list, x_lin_list, x_quad_list = [], [], []
         u_lin_list, u_quad_list = [], []
         for c in self.alpha_c_in_model:
-            const_list.append(c.const)
-            x_lin_list.append(c.x_lin)
+            const_list.append(c.const + self.s.ti[0])
+            x_lin_list.append(c.x_lin + self.s.phi_i_x_lin[0])
             mat_to_append = c.x_hessian if c.x_hessian is not None else np.zeros((self.n, self.n))
             mat_to_append += self.s.phi_i_x_quad[0]
             x_quad_list.append(mat_to_append)
-            u_lin_list.append(c.u_lin)
+            u_lin_list.append(c.u_lin + self.s.ri[0])
             mat_to_append = c.u_hessian if c.u_hessian is not None else np.zeros((self.m, self.m))
             mat_to_append += self.s.Ri[0]
             u_quad_list.append(mat_to_append)
@@ -1185,7 +1137,8 @@ class QFApproximator(VFApproximator):
             np.savetxt(output_dir + '/xalg_bellman_error_M' + str(nx) + '.csv',
                        xalg_bellman_csv_array,
                        fmt='%d,%.5f,%.5f,%.5f,%.5f', delimiter=',',
-                       header='Iteration,Mean TV(x)-V(x),Mean (TV(x)-V(x))/V(x),Max TV(x)-V(x),Max (TV(x)-V(x))/V(x)', comments='')
+                       header='Iteration,Mean TV(x)-V(x),Mean (TV(x)-V(x))/V(x),Max TV(x)-V(x),Max (TV(x)-V(x))/V(x)',
+                       comments='')
         except Exception as e:
             print "Could not save " + output_dir + '/xalg_bellman_error_M' + str(nx) + '.csv'
 

@@ -1,6 +1,7 @@
 from gddp import System, VFApproximator, QFApproximator
 
 strategy_dict = {'max_iter': 10}
+outputs_dict = {'suppress_outputs': True}
 
 ####################################################################################################
 # 1D system
@@ -43,11 +44,12 @@ strategy_dict = {'max_iter': 10}
 sys3 = System(preset_system="8 states 3 inputs")
 vfa = VFApproximator(sys3)
 vfa.create_vfa_model()
-vfa.approximate(strategy_in=strategy_dict)
+vfa.approximate(strategy_in=strategy_dict, outputs_in=outputs_dict)
 vfa.print_function_approximation(save=True)
 vfa.save_function_approximation()
+
 qfa = QFApproximator(sys3)
 qfa.create_qfa_model()
-qfa.approximate(strategy_in=strategy_dict)
+qfa.approximate(strategy_in=strategy_dict, outputs_in=outputs_dict)
 qfa.print_function_approximation(save=True)
 qfa.save_function_approximation()

@@ -26,17 +26,16 @@ default_approx_strategy = {'max_iter': 100,
                            'stop_on_convergence': False,
                            'remove_redundant': False, 'removal_freq': 10,
                            'removal_resolution': 100000,
-                           'focus_on_origin': False, 'consolidate_constraints': False,
-                           'consolidation_freq': False,
+                           'focus_on_origin': False,
                            'value_function_limit': 10000}
 default_approx_audit = {'eval_ub': False, 'eval_ub_freq': 5, 'eval_ub_final': False,
-                        'eval_bellman': False, 'eval_bellman_freq': 5,
-                        'eval_integral': False, 'eval_integral_freq': 5,
+                        'eval_convergence': False, 'eval_convergence_freq': 5,
                         'n_independent_x': 100,
-                        'eval_convergence': False, 'eval_convergence_freq': 5}
+                        'eval_ind_bellman': False, 'eval_ind_bellman_freq': 5,
+                        'eval_ind_integral': False, 'eval_ind_integral_freq': 5}
 default_approx_outputs = {'cl_plot_j': False, 'cl_plot_freq': 20, 'cl_plot_final': False,
                           'cl_plot_n_steps': 50,
-                          'vfa_plot_j': False, 'vfa_plot_freq': 1, 'vfa_plot_ub': False,
+                          'vfa_plot_j': False, 'vfa_plot_freq': 1,
                           'vfa_plot_final': True,
                           'policy_plot_j': False, 'policy_plot_freq': 5,
                           'policy_plot_final': True,
@@ -46,7 +45,6 @@ default_approx_outputs = {'cl_plot_j': False, 'cl_plot_freq': 20, 'cl_plot_final
 default_x1_min, default_x1_max, default_res1 = -3, 3, 0.1
 default_x2_min, default_x2_max, default_res2 = -3, 3, 0.1
 default_2d_vmin, default_2d_vmax = None, None
-
 
 class VFApproximator(object):
     """VFApproximator generates approximate value functions for continuous state and action
@@ -208,7 +206,7 @@ class VFApproximator(object):
                 self.mod.addConstr(gu.LinExpr([(self.s.E[i, p], x[p]) for p in range(self.m)]) <=
                                    self.s.h[i] - np.dot(self.s.D[i, :], xhat),
                                    name="sic_%d" % (i + 1))
-            # Add beta epigraph constraints
+            # Add beta epigraph constraints for modelling the stage cost
             for i, li in enumerate(self.s.li):
                 c = [q for q in self.mod.getQConstrs() if q.QCName == "beta_%d" % (i + 1)]
                 self.mod.remove(c[0])
@@ -223,24 +221,13 @@ class VFApproximator(object):
                                    self.s.ti[i], name="beta_%d" % (i + 1))
 
             if xplus_constraint is not None:
-                # Remove any existing x_plus constraints
+                # Remove any existing constraints that force transition to a particular x_plus
                 c = [l for l in self.mod.getConstrs() if "forced_xplus_" in l.ConstrName]
                 for l in c:
                     self.mod.remove(l)
                 assert xplus_constraint.shape == (self.n,), "Forced x_plus has wrong dimension"
 
-                # n_subspace = xplus_constraint.shape[1]
-                # print "n_subspace:", n_subspace
                 for j in range(self.n):
-                    # b_power_A = np.dot(xplus_constraint[:, j],
-                    #                    -np.linalg.matrix_power(self.s.A_mat, self.n - n_subspace))
-                    # print "    ", j, b_power_A
-                    # self.mod.addConstr(gu.LinExpr([(b_power_A[i], x[self.m + i])
-                    #                                for i in range(self.n)]) <= 1e-2,
-                    #                    name='forced_xplus_u_%d' % (j + 1))
-                    # self.mod.addConstr(gu.LinExpr([(b_power_A[i], x[self.m + i])
-                    #                                for i in range(self.n)]) >= -1e-2,
-                    #                    name='forced_xplus_l_%d' % (j + 1))
                     self.mod.addConstr(x[self.m + j] == xplus_constraint[j],
                                        name='forced_xplus_l_%d' % (j + 1))
             else:
@@ -399,17 +386,10 @@ class VFApproximator(object):
         if check_lambda_a:
             if np.abs(np.sum(lambda_a) - self.s.gamma) >= 1e-3:
                 print "  Warning: Incorrect lambda_a sum: %.5f. To fix." % np.sum(lambda_a)
-            # if np.abs(np.sum(lambda_a) - self.s.gamma) >= 0.01:
-            #     dodgy_bound = True  # Commenting this out because duals fixed below
             assert np.all([a > -1e-4 for a in lambda_a]), \
                 "Not all lambda_a multipliers positive! " + repr(lambda_a)
 
         f_x_const, f_x_lin = self.s.f_x_x(None)
-
-        # (lambda_a, lambda_b, lambda_c, pi) = self.fix_duals((np.array(lambda_a),
-        #                                                      np.array(lambda_b),
-        #                                                      np.array(lambda_c),
-        #                                                      np.array(pi)))
 
         bound_out_const = (opt_cost +
                            np.dot(lambda_c, np.dot(self.s.D, xhat)) -
@@ -448,8 +428,6 @@ class VFApproximator(object):
         :param just_return_cost: Boolean, if false return stage cost + cost-to-go. Else beta & alpha
         :return: Cost
         """
-        # print 'u:', u
-        # print 'xhat:', xhat
         x_plus = self.s.get_x_plus(xhat, u)
         beta_vec = self.s.beta_vec(xhat, u)
         alpha = -np.inf
@@ -580,9 +558,6 @@ class VFApproximator(object):
 
     def eval_vfa(self, x_in):
         """Evaluates lower bound (max of all LB functions) at x_in by evaluating all LBs"""
-
-        # if self.s.name == 'Inverted pendulum':
-        #     x_in[0] = divmod(x_in[0] + np.pi, 2 * np.pi)[1] - np.pi
         f_out = -np.inf
         for c in self.alpha_c_in_model:
             f_out = max(f_out, c.eval_at(x_in))
@@ -689,7 +664,6 @@ class VFApproximator(object):
             else:
                 savemat(output_dir + '/vfa_%d.mat' % iter_no, {'X': X, 'Y': Y, 'mesh': mesh})
 
-            # Axes3D.plot_wireframe(X, Y, mesh)
             plt.imshow(mesh.T, aspect='equal', origin='lower', cmap='bone',
                        extent=[x1_min, x1_max, x2_min, x2_max],
                        vmin=default_2d_vmin, vmax=default_2d_vmax)
@@ -757,18 +731,18 @@ class VFApproximator(object):
                 print e
 
     def save_function_approximation(self):
-        # Saves the lower-bounding functions that describe the value function approximation as a
-        # .mat file. The constant, linear, and quadratic parts are stored in separate lists.
-        # The functions take the form g_i(x) = c.const + (c.lin)'x + 0.5 * x'(c.hessian)x.
+        """Saves the lower-bounding functions that describe the value function approximation as a
+        .mat file. The constant, linear, and quadratic parts are stored in separate lists.
+        The functions take the form g_i(x) = c.const + (c.lin)'x + 0.5 * x'(c.hessian)x.
+        """
         const_list, x_lin_list, x_quad_list = [], [], []
         for c in self.alpha_c_in_model:
             const_list.append(c.const)
             x_lin_list.append(c.lin)
             mat_to_append = c.hessian if c.hessian is not None else np.zeros((self.n, self.n))
             x_quad_list.append(mat_to_append)
-        savemat('output/' + self.s.name + '/vfa_description.mat', {'g_const': const_list,
-                                                                   'g_lin': x_lin_list,
-                                                                   'g_quad': x_quad_list},
+        savemat('output/' + self.s.name + '/vfa_description.mat',
+                {'g_const': const_list, 'g_lin': x_lin_list, 'g_quad': x_quad_list},
                 oned_as='column')
 
     def plot_policy(self, iter_no=None, save=False, output_dir=None, policy_in=None):
@@ -890,22 +864,6 @@ class VFApproximator(object):
                   np.max(xalg_tv_of_x - xalg_v_of_x) * 1.05])
         plt.savefig('output/' + self.s.name + '/xalg_BE.pdf')
         plt.close()
-
-        #
-        # plt.figure()
-        # plt.plot(xalg_tv_of_x, 100. * (xalg_tv_of_x - xalg_v_of_x) / xalg_v_of_x,
-        #          linewidth=0., marker='x')
-        #
-        # if self.__class__.__name__ == "QFApproximator":
-        #     plt.ylabel('$(T_QQ(x,u) - Q(x,u))/Q(x,u)$ (%)')
-        #     plt.xlabel('$Q(x,u)$')
-        # else:
-        #     plt.ylabel('$(TV(x) - V(x))/V(x)$ (%)')
-        #     plt.xlabel('$V(x)$')
-        # plt.ylim([min(-1., np.min(100. * (xalg_tv_of_x - xalg_v_of_x) / xalg_v_of_x) * 1.05),
-        #           min(100., np.max(100. * (xalg_tv_of_x - xalg_v_of_x) / xalg_v_of_x) * 1.05)])
-        # plt.savefig('output/' + self.s.name + '/xalg_BE_by_norm.pdf')
-        # plt.close()
 
     def output_convergence_results(self, data_in, nx, output_dir):
         """Save CSV files and graphs in PDF form regarding convergence of the algorithm
@@ -1182,14 +1140,12 @@ class VFApproximator(object):
         conv_tol, stop_on_conv = strategy['conv_tol'], strategy['stop_on_convergence']
         remove_red, removal_freq = strategy['remove_redundant'], strategy['removal_freq']
         removal_res = int(strategy['removal_resolution'])
-        consolidate_constraints = strategy['consolidate_constraints']
-        consolidation_freq = strategy['consolidation_freq']
         value_function_limit = strategy['value_function_limit']
 
         eval_ub, eval_ub_freq = audit['eval_ub'], audit['eval_ub_freq']
         eval_ub_final = audit['eval_ub_final']
-        eval_bellman, eval_bellman_freq = audit['eval_bellman'], audit['eval_bellman_freq']
-        eval_integral, eval_integral_freq = audit['eval_integral'], audit['eval_integral_freq']
+        eval_ind_bellman, eval_ind_bellman_freq = audit['eval_ind_bellman'], audit['eval_ind_bellman_freq']
+        eval_ind_integral, eval_ind_integral_freq = audit['eval_ind_integral'], audit['eval_ind_integral_freq']
         eval_convergence = audit['eval_convergence']
         eval_convergence_freq = audit['eval_convergence_freq']
         n_ind_x_points = audit['n_independent_x']
@@ -1264,9 +1220,7 @@ class VFApproximator(object):
             print "Iteration %d" % j
 
             lb_constr_count[j] = len(self.alpha_c_in_model)
-            if consolidate_constraints and divmod(j, consolidation_freq)[1] == 0:
-                self.consolidate_bounds()
-            # Eval Bellman error convergence
+            # Evaluate Bellman error convergence
             if eval_convergence and divmod(j, eval_convergence_freq)[1] == 0:
                 print "  Measuring VF integral and Bellman error for M=%d elements of XAlg..." % n_x_points
                 if j > 0 and sol_strategy == 'biggest_gap':
@@ -1291,7 +1245,6 @@ class VFApproximator(object):
                                              np.max(
                                                  (xalg_tv_of_x - xalg_v_of_x) / xalg_v_of_x)))
             # Evaluate value function upper bound
-            x_data, x_upper = None, None
             if eval_ub and divmod(j, eval_ub_freq)[1] == 0:
                 print "  Evaluating closed-loop UB for M=%d elements of XAlg..." % n_x_points
                 if not (eval_convergence and divmod(j, eval_convergence_freq)[1] == 0):
@@ -1313,7 +1266,7 @@ class VFApproximator(object):
                 else:
                     xalg_cl_ub_results.append((copy.copy(j), np.inf, np.inf))
             # Measure integral of value function approximation over x samples
-            if eval_integral and divmod(j, eval_integral_freq)[1] == 0:
+            if eval_ind_integral and divmod(j, eval_ind_integral_freq)[1] == 0:
                 print "  Measuring VF integral for %d independent samples..." % n_ind_x_points
                 ind_v_of_x = np.array([self.eval_vfa(x) for x in self.v_integral_x_list])
                 t1 = time.time()
@@ -1321,12 +1274,12 @@ class VFApproximator(object):
                 t2 = time.time()
                 self.v_integral_eval_time += t2 - t1
             # Measure Bellman gap TV(x) - V(x) over x samples
-            if eval_bellman and divmod(j, eval_bellman_freq)[1] == 0:
+            if eval_ind_bellman and divmod(j, eval_ind_bellman_freq)[1] == 0:
                 print "  Measuring Bellman error for %d independent samples..." % n_ind_x_points
                 avg_gap, avg_rel_gap, max_gap, max_rel_gap = self.measure_ind_bellman_gap()
                 ind_bellman_results.append((copy.copy(j), avg_gap, avg_rel_gap, max_gap, max_rel_gap))
                 print "  Measuring closed-loop UB for %d independent samples..." % n_ind_x_points
-                if not (eval_integral and divmod(j, eval_integral_freq)[1] == 0):
+                if not (eval_ind_integral and divmod(j, eval_ind_integral_freq)[1] == 0):
                     ind_v_of_x = np.array([self.eval_vfa(x) for x in self.v_integral_x_list])
                 ind_ubs, ind_fi = self.measure_many_cl_upper_bounds(self.v_integral_x_list,
                                                                     n_steps=cl_plot_n_steps,
@@ -1379,21 +1332,6 @@ class VFApproximator(object):
                     if self.eval_vfa(x_picked) <= value_function_limit:
                         vfa_too_large = False
 
-                # Tests on a point x_test for debug purposes
-                # if j > 55:
-                #     # x_test = np.array([-0.754, -0.060, -1.944, 0.030])
-                #     x_test = np.array([0.05036, 0.05092, -0.35502, -0.09855])
-                #     # v_of_x_test = self.eval_vfa(x_test)
-                #     # x_test_bd, x_test_sol = self.solve_for_xhat(x_test, iter_no=j, extract_constr=True)
-                #     # tv_of_x_test = np.sum(x_test_sol[2]) + self.s.gamma * x_test_sol[3]
-                #     # print "  V(x_test): %.5f, TV(x_test): %.5f, BE: %.5f" % \
-                #     #       (v_of_x_test, tv_of_x_test, tv_of_x_test - v_of_x_test)
-                #     # jd_of_x_test = x_test_bd.eval_at(x_test)
-                #     # print "  J_D(x_test): %.5f" % jd_of_x_test
-                #     # print "  g_i(x_test): %.5f" % x_test_bd.eval_at(x_test)
-                #     print "  new_constr(x_picked): %.5f" % new_constr.eval_at(x_picked)
-                #     print "  new_constr(x_test): %.5f" % new_constr.eval_at(x_test)
-
             elif sol_strategy == 'biggest_gap':
                 old_k = copy.copy(k)
                 if not xalg_bellman_results[-1][0] == j:
@@ -1410,29 +1348,7 @@ class VFApproximator(object):
                 x_picked = xalg_list[k]
                 if k == old_k and old_largest_bellman_error == xalg_tv_of_x[k] - xalg_v_of_x[k]:
                     print "Index and value of largest Bellman error didn't change!"
-                    # raise SystemExit()
 
-            elif sol_strategy == 'parallel':
-                print "parallel not implemented!"
-                raise SystemExit()
-                # Generate a new LB constraint for each x sample
-                constrs_to_add = []
-                for i, x in enumerate(xalg_list):
-                    new_constr, sol = self.solve_for_xhat(x, iter_no=j, extract_constr=True)
-                    u, xplus, beta, alpha = sol
-                    xalg_v_of_x[i] = self.eval_vfa(x)
-                    xalg_tv_of_x[i] = np.sum(beta) + gamma * alpha
-                    summed_ub_1s[j] += np.sum(beta) + gamma * alpha
-                    if xalg_tv_of_x[i] - xalg_v_of_x[i] > new_constr_tol:
-                        constrs_to_add.append(copy.deepcopy(new_constr))
-                    lb_ub_results.append((j, xalg_integral_results[j], summed_ub_1s[j]))
-
-                # Modify the VF approximation
-                for c in constrs_to_add:
-                    if not c.dodgy:
-                        self.add_alpha_constraint(c)
-                    else:
-                        print "  New LB constraint not reliable. Not adding to model."
             else:
                 print "Unrecognized solution strategy:", sol_strategy
                 raise SystemExit()
@@ -1457,12 +1373,10 @@ class VFApproximator(object):
                     print "  New LB constr. doesn't increase VFA due to duality gap. Not added."
                 else:
                     self.add_alpha_constraint(new_constr)
-                    # new_constr.plot_function(output_dir='output/'+self.s.name, iter_no=j)
                     print "  New LB constraint added to model."
             elif gap_found <= -1e-3:
                 print "  Negative Bellman error found for sample %d: %.5f!" % (k + 1, gap_found)
                 print "x_picked:", x_picked
-                # print "u, xplus, beta, alpha:", u, xplus, beta, alpha
                 print "Alpha constraints:"
                 for c in self.alpha_c_in_model:
                     print "Constraint %d:" % c.id + " V(x_picked) - g_i(x_picked):", \

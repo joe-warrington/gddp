@@ -141,7 +141,7 @@ class QConstraint(object):
         return string_out
 
     def eval_at(self, x_in, u_in):
-        # Evaluate the function at a particular value of (x, u)
+        # Evaluate the function at a particular value of (x, u), EXCLUDING stage cost component
         assert x_in.shape == (self.n,)
         assert u_in.shape == (self.m,)
 
@@ -153,8 +153,7 @@ class QConstraint(object):
                     0.5 * np.dot(u_in, np.dot(self.u_hessian, u_in)))
 
     def plot_function(self, output_dir, iter_no):
-        """Plot constraint function in two dimensions. Coordinate ranges and discretization step
-        are currently hard-coded.
+        """Plot constraint function in two dimensions.
 
         :param output_dir: Output directory
         :param iter_no: Iteration number for labelling the constraint plot
