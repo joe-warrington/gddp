@@ -120,6 +120,6 @@ Q | q_u_quad | ( _I_+1, _m_, _m_) | Quadratic (Hessian) u component of VF lower 
 
 ## References
 
-[1] J. Warrington, P. Beuchat, J. Lygeros, "Generalized Dual Dynamic Programming for Infinite Horizon Problems in Continuous State and Action Spaces", _IEEE Transactions on Automatic Control, to appear December 2019._
+[1] J. Warrington, P. Beuchat, J. Lygeros, "Generalized Dual Dynamic Programming for Infinite Horizon Problems in Continuous State and Action Spaces", _IEEE Transactions on Automatic Control, December 2019._
 
 [2] J. Warrington, "Learning Continuous Q-Functions via generalized Benders cuts", _European Control Conference 2019, Naples, Italy, June 2019._

@@ -5,7 +5,7 @@ import copy
 import pandas as pd
 import matplotlib as mpl
 from matplotlib import pyplot as plt
-from scipy.io import savemat, loadmat
+from scipy.io import savemat
 from scipy.stats import laplace
 import os
 from gddp import VConstraint
@@ -620,7 +620,7 @@ class VFApproximator(object):
 
             if self.s.dare_sol is not None and self.s.pure_lqr:
                 plt.plot(plot_range, [0.5 * x ** 2 * self.s.dare_sol[0, 0] for x in plot_range],
-                         linewidth=1.0, color='r', label='$V^\star (x)$ (unconstrained LQR)')
+                         linewidth=1.0, color='r', label='$V^*(x)$ (unconstrained LQR)')
 
             plt.legend()
             plt.xlim([x_min, x_max])
@@ -629,7 +629,7 @@ class VFApproximator(object):
             if self.s.dare_sol is not None:
                 dare_cost_at_bound = 0.5 * self.s.dare_sol[0, 0] * x_max * x_max
                 plt.ylim([-0.05, 1.5 * dare_cost_at_bound])
-            plt.ylabel('$\hat{V}_I(x)$')
+            plt.ylabel('$\hat{V}_J(x)$')
             if iter_no is not None:
                 plt.title('Value function approximation, %d iterations' % iter_no)
             else:

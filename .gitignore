@@ -4,6 +4,7 @@ gurobi.log
 output/*
 *.pyc
 docs/html/*
+docs/latex/*
 docs/latex/*.eps
 docs/latex/*.pdf
 docs/latex/*.aux
